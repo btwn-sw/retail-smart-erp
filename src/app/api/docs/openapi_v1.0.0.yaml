@@ -15,8 +15,10 @@ tags:
   
 security:
   - cookieAuth: []
+  - accountCookieAuth: []
 
 paths:
+  # ---- /auth ----
   /auth/validate:
     get:
       tags:
@@ -422,138 +424,375 @@ paths:
               example:
                 error: "Failed to reset password. Please try again."
 
+  # ---- /account-auth ----
+  /account-auth/heartheat:
+    post:
+      tags:
+        - Authentication
+      summary: Account session keep-alive
+      description: >
+        Keep-alive signla for **platform account users**. Validates the account session and updates `lastActiveAt` on the account record.
+      operationId: accountHeartbeat
+      security:
+        - accountCookieAuth: []
+      responses:
+        '200':
+          description: >
+            Session is valid and active. `lastActiveAt` has been updated and the session expiry has been exteneded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              example:
+                valid: true
+        '401':
+          description: >
+            Session is invalid or has expired. The `valid` field is always `false`. The `reason` field is present only when the session expired due to inactivity.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              examples:
+                noSession:
+                  summary: No valid session cookie
+                  value:
+                    valid: false
+                inactivity:
+                  summary: Session expired due to inactivity
+                  value:
+                    valid: false
+                    reason: "Session expired due to inactivity"
+        '500':
+          description: >
+            Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              example:
+                valid: false
+                reason: "Heartbeat error"
+
+  /account-auth/validate:
+    get:
+      tags:
+        - Authentication
+      summary: Validate account session
+      description: >
+        Validates the current platform account session against the database. This is the account-level counterpart to `GET /auth/validate`, which serves tenant staff users.
+
+        Read-only - does **not** write `lastActiveAt`.
+      operationId: validateAccountSession
+      security:
+        - accountCookieAuth: []
+      responses:
+        '200':
+          description: >
+            Session is valid. The account exists and has been active within the last 3 hours.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              example:
+                valid: true
+        '401':
+          description: >
+            Session is invalid. The `valid` field is always `false`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              examples:
+                revoked:
+                  summary: Session explicitly revoked
+                  value:
+                    valid: false
+                    reason: "Session revoked"
+                notFound:
+                  summary: Account no longer eixsts
+                  value:
+                    valid: false
+                    reason: "Account not found"
+                inactivity:
+                  summary: Inactive for more than 3 hours
+                  value:
+                    valid: false
+                    reason: "Session expired due to inactivity"
+        '500':
+          description: >
+            Unexpected server error. Errors are logged via `logError`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              example:
+                valid: false
+                reason: "Validation error"
+
+  /account-auth/transfer:
+    post:
+      tags:
+        - Authentication
+      summary: Generate company transfer token
+      description: >
+        Generates a short-lived transfer token that allows a platform account owner to enter a company (tenant) staff session **without re-entering credentials**. 
+
+        > **Auth required.** Must be called with a valid platform account session.
+      operationId: generateTransferToken
+      security:
+        - accountCookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferAuthRequest'
+            examples:
+              byTenantId:
+                summary: Transfer using company UUID
+                value:
+                  tenantId: "b3d2e1f0-1234-5678-abcd-ef0123456789"
+              byTenantSlug:
+                summary: Transfer using company slug
+                value:
+                  tenantSlug: "city-mart"
+      responses:
+        '200':
+          description: >
+            Transfer token successfully generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferAuthResponse'
+              example:
+                transferToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…"
+                slug: "city-mart"
+        '401':
+          description: >
+            No valid account session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '403':
+          description: >
+            The account does not have an active membership in the requested company.The company exists but the account is not a member, or the membership has been revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "No access to this company"
+        '404':
+          description: >
+            Company not found or not active. The `tenantId` or `tenantSlug` does not match any existing company, or the company has been suspended (`status` is not `"active"`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Company not found or inactive"
+        '422':
+          description: >
+            Request body validation failed. Neither `tenantId` nor `tenantSlug` was provided, or the provided values are invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: >
+            Server configuration error (missing `NEXTAUTH_SECRET` or unexpected error during token generation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                configError:
+                  summary: Missing server configuration
+                  value:
+                    error: "Server configuration error"
+                serverError:
+                  summary: Unexpected error
+                  value:
+                    error: "Failed to generate transfer token"
+
+
 components:
   securitySchemes: 
+    # ---- auth ----
     cookieAuth:
       type: apiKey
       in: cookie
       name: next-auth.session-token
       description: >
         Session cookie set by NextAuth.js upon login.
+    
+    # ---- account-auth ----
+    accountCookieAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: >
+        Session cookie issued by the **account-auth** NextAuth.js instance (`/account-auth/`). Used to authenticate platform account owners and managers.
   
   schemas:
-  # ---- Common ----
-  ErrorResponse:
-    type: object
-    properties:
-      error:
-        type: string
-        description: Human-readable error message.
-        example: "Unauthorized"
-    required:
-      - error
-  
-  # ---- Authentication ----
-  WsTokenResponse:
-    type: object
-    properties:
-      token:
-        type: string
-        description: >
-          A signed JWT valid for 1 hour. The token payload differes by user type: 
-            tenant-mode tokens include `tenantId`, `tenantSlug`, and `role`;
-            account-mode tokens include `accountId`.
-        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-    required:
-      - token
+    # ---- Common ----
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error message.
+          example: "Unauthorized"
+      required:
+        - error
+    
+    # ---- Authentication ----
+    WsTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: >
+            A signed JWT valid for 1 hour. The token payload differes by user type: 
+              tenant-mode tokens include `tenantId`, `tenantSlug`, and `role`;
+              account-mode tokens include `accountId`.
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      required:
+        - token
 
-  ValidationResponse:
-    type: object
-    properties:
-      valid:
-        type: boolean
-        description: >
-          Indicates whether the current session is valid.
-          Always present in the response, even on error.
-      reason:
-        type: string
-        description: >
-          Human-readable explanation of why the session is invalid.
-          Only present when `valid` is `false`.
-    required:
-      - valid
-  
-  SuccessMessageResponse:
-    type: object
-    properties:
-      success:
-        type: boolean
-        example: true
-      message:
-        type: string
-        example: >
-          If an account exists with that email, we've sent password reset instructions.
-    required:
-      - success
-      - message
-  
-  ForgotPasswordRequest:
-    type: object
-    properties:
-      email:
-        type: string
-        format: email
-        description: >
-          The email address associated with the platform account.
-          The value is normalized (lowercased and trimmed) before processing.
-        example: "user@example.com"
-    required:
-      - email
-  
-  ResetPasswordRequest:
-    type: object
-    properties:
-      token:
-        type: string
-        description: >
-          The JWT from the password reset email link (query parameter `token` from the reset URL).
-          Must have `purpose: "password-reset"` in its payload.
-          Expires 1 hour after being issued.
-        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-      newPassword:
-        type: string
-        format: password
-        description: >
-          The new password to set. Must meet the application's password complexity requirements as defined in `resetPasswordSchema`.
-        example: "NewsecureP@ss123"
-    required:
-      - token
-      - newPassword
+    ValidationResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          description: >
+            Indicates whether the current session is valid.
+            Always present in the response, even on error.
+        reason:
+          type: string
+          description: >
+            Human-readable explanation of why the session is invalid.
+            Only present when `valid` is `false`.
+      required:
+        - valid
+    
+    SuccessMessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: >
+            If an account exists with that email, we've sent password reset instructions.
+      required:
+        - success
+        - message
+    
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: >
+            The email address associated with the platform account.
+            The value is normalized (lowercased and trimmed) before processing.
+          example: "user@example.com"
+      required:
+        - email
+    
+    ResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          description: >
+            The JWT from the password reset email link (query parameter `token` from the reset URL).
+            Must have `purpose: "password-reset"` in its payload.
+            Expires 1 hour after being issued.
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        newPassword:
+          type: string
+          format: password
+          description: >
+            The new password to set. Must meet the application's password complexity requirements as defined in `resetPasswordSchema`.
+          example: "NewsecureP@ss123"
+      required:
+        - token
+        - newPassword
 
-  StaffForgotPasswordRequest:
-    type: object
-    properties:
-      email:
-        type: string
-        format: idn-email
-        description: >
-          The email address of the staff member.
-          Normalized (lowercased and trimmed) before processing.
-        example: "staff@example.com"
-      tenantSlug:
-        type: string
-        description: >
-          The URL slug identifying the company this staff member belongs to.
-          Used as part of the rate limit key and to scope the database lookup. The company must exist and have `active` status.
-        example: "city-mart"
-    required:
-      - email
-      - tenantSlug
-  
-  StaffResetPasswordRequest:
-    type: object
-    properties:
-      token:
-        type: string
-        description: >
-          The JWT from the staff password reset email link (query parameter `token` from the reset URL). Must have `purpose: "staff-password-reset"` in its payload. Payload also contains `userId`, `email`, and `tenantId`. Expires 1 hour after being issued. Cannot be used iterchangeably with the platform reset token (`purpose: "password-reset"`).
-        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-      newPassword:
-        type: string
-        format: password
-        description: >
-          The new password to set. Must meet the application's password complexity requirements as defined in `staffResetPasswordSchema`.
-        example: "NewSecureP@ss123"
-    required:
-      - token
-      - newPassword
+    StaffForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: idn-email
+          description: >
+            The email address of the staff member.
+            Normalized (lowercased and trimmed) before processing.
+          example: "staff@example.com"
+        tenantSlug:
+          type: string
+          description: >
+            The URL slug identifying the company this staff member belongs to.
+            Used as part of the rate limit key and to scope the database lookup. The company must exist and have `active` status.
+          example: "city-mart"
+      required:
+        - email
+        - tenantSlug
+    
+    StaffResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          description: >
+            The JWT from the staff password reset email link (query parameter `token` from the reset URL). Must have `purpose: "staff-password-reset"` in its payload. Payload also contains `userId`, `email`, and `tenantId`. Expires 1 hour after being issued. Cannot be used iterchangeably with the platform reset token (`purpose: "password-reset"`).
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        newPassword:
+          type: string
+          format: password
+          description: >
+            The new password to set. Must meet the application's password complexity requirements as defined in `staffResetPasswordSchema`.
+          example: "NewSecureP@ss123"
+      required:
+        - token
+        - newPassword
+    
+    TransferAuthRequest:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+          description: >
+            the UUID of the company to transfer into.
+          example: "b3d2e1f0-1234-5678-abcd-ef0123456789"
+        tenantSlug:
+          type: string
+          description: >
+            The URL slug of the company to transfer into.
+          example: "city-mart"
+      description: >
+        At least one of `tenantId` or `tenantSlug` must be provided. If both are provided, `tenantId` takes priority.
+    
+    TransferAuthResponse:
+      type: object
+      properties:
+        transferToken:
+          type: string
+          description: >
+            A short-lived JWT (expires in **30 seconds**) signed with HS256. Payload contains `accountId`, `tenantSlug`, `type: "company-transfer"`, `ip`, and `userAgent`.
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        slug:
+          type: string
+          description: >
+            The resolved company URL slug.
+      required:
+        - transferToken
+        - slug

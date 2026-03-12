@@ -1,0 +1,27 @@
+openapi: 3.0.0
+
+info:
+  version: 1.0.0
+  title: Retail Smart ERP API
+  description: OpenAPI specification for the Retail Smart ERP backend API.
+  
+servers:
+  - url: https://api.example.com
+    description: Production Server (placeholder)
+
+tags:
+  - name: Authentication
+  
+security:
+  - cookieAuth: []
+
+paths: {}
+
+components:
+  securitySchemes: 
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: >
+        Session cookie set by NextAuth.js upon login.

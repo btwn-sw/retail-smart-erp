@@ -3,19 +3,424 @@ openapi: 3.0.0
 info:
   version: 1.0.0
   title: Retail Smart ERP API
-  description: OpenAPI specification for the Retail Smart ERP backend API.
-  
+  description: OpenAPI specification for the Retail Smart ERP backend API. (placeholder_description)
+
 servers:
   - url: https://api.example.com
     description: Production Server (placeholder)
 
 tags:
   - name: Authentication
+    description: Authentication and session-related endpoints.
   
 security:
   - cookieAuth: []
 
-paths: {}
+paths:
+  /auth/validate:
+    get:
+      tags:
+        - Authentication
+      summary: Validate current session
+      description: >
+        Checks whether the caller's current session is still valid by running real-time database checks - not just reading the session cookie.
+
+        This endpoint is intended to be called **periodically in the background** by the client to detect server-side acess changes (e.g., user deactivation, company suspension, or session expiry due to inactivity).
+      operationId: validateSession
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: >
+            Session is valid. All database checks passed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              example:
+                valid: true
+        '401':
+          description: >
+            Session is invalid. The `reason` field explains why.
+            Possible reasons:
+              - No session cookie present
+              - Business not found or inactive
+              - Access revoked (user deactivated or removed)
+              - Session expired due to inactivity (no activity for 3+ hours)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              examples:
+                noSession:
+                  summary: No active session
+                  value:
+                    valid: false
+                busienssInactive:
+                  summary: Company suspended or deleted
+                  value:
+                    valid: false
+                    reason: "Business not found or inactive"
+                accessRevoked:
+                  summary: User deactivated or removed
+                  value:
+                    valid: false
+                    reason: "Access revoked"
+                inactivityExpired:
+                  summary: Inactive for more than 3 hours
+                  value:
+                    valid: false
+                    reason: "Session expired due to inactivity"
+        '500':
+          description: >
+            Unexpected server error during validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              example:
+                valid: false
+                reason: "Validation error"
+
+  /auth/heartbeat:
+    post:
+      tags:
+        - Authentication
+      summary: Send session heartbeat
+      description: >
+        Called periodically by the client while the user is actively using the application. This endpoint serves two purposes:
+        
+        1. **Validates** that the session has not expired due to inactivity (applies the same 3-hour rule as `GET /auth/validate`).
+
+        2. **Refreshes** the user's `lastActiveAt` timestamp in the database, keeping the sesion alive for another 3 hours.
+
+        3. **Important:** If the sesison has already been inactive for more than 3 hours at the time of the call, the timestamp is **not** updated and the session **cannot** be revived. The user must log in again.
+
+        > **Note:** No request body is required. The server reads identity from the session cookie.
+
+        > **Note:** Platform account users (no `tenantId`) bypass all database checks and always receive `valid: true`.
+
+      operationId: sendHeartbeat
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: false
+        description: >
+          No request body required.
+      responses:
+        '200':
+          description: >
+            Session is valid and `lastActiveAt` has been refreshed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              example:
+                valid: true
+        '401':
+          description: >
+            Session is invalid. Possible reasons:
+              - No active session cookie
+              - User record not found in the database
+              - Session expired due to inactivity (no activity for 3+ hours)
+            
+            When `valid: false` is returned, the client should redirect the user to the login page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              examples:
+                noSession:
+                  summary: No active session
+                  value:
+                    valid: false
+                userNotFound:
+                  summary: User record not found
+                  value:
+                    valid: false
+                inactivityExpired:
+                  summary: Inactive for more than 3 hours
+                  value:
+                    valid: false
+                    reason: "Session expired due to inactivity"
+        '500':
+          description: >
+            Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              example:
+                valid: false
+                reason: "Heartbeat error"
+
+  /auth/ws-token:
+    get:
+      tags:
+        - Authentication
+      summary: Get WebSocket authentication token
+      description: >
+        Generates a short-lived JWT token (expires in 1hour) for authenticating WebSocket connections. The caller must already have an active session (either tenant or account). No request body or query parameters are required - the server reads the session from the caller's cookies.
+
+        The token payload varies by session type:
+          - **Tenant mode** (company user): includes `id`, `name`, `tenantId`, `tenantSlug`, `role`, `mode: "tenant"`
+          - **Account mode** (platform user): includes `id`, `accountId`, `name`, `mode: "account"`
+      operationId: getWsToken
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: JWT Token successfully generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WsTokenResponse'
+        '401':
+          description: >
+            No active session found. The user is not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: >
+            Server Error - either the server secret is not configured, or an unexpected internal error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingSecret:
+                  summary: Server misconfiguration
+                  value:
+                    error: "Server configuration error"
+                unexpectedError:
+                  summary: Unexpected internal error
+                  value:
+                    error: "Failed to generate token"
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Authentication
+      summary: Request password reset email
+      description: >
+        Sends a password reset email to the provided address if a matching platform account exists. This endpoint applies to **platform account users only** - not to tenant (company) staff users.
+      operationId: ForgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: >
+            Always returned, regardless of whether the email exists or the reset email was sent. This behvior is intentional to prevent email enumeration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+              example:
+                success: true
+                message: >
+                  If an account exists with that email, we've sent password reset instructions.
+        '422':
+          description: >
+            Request body failed validation. The email field is missing or not a valid email format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid email address"
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Authentication
+      summary: Reset account password using reset token
+      description: >
+        Completes the password reset flow initiated by `POST /auth/forgot-password`. Accepts the JWT from the reset email and a new password, verifies all conditions, then updates the password in the database.
+
+        **This endpoint applies to platform account users only** (not tenant staff users).
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: >
+            Password successfully reset. All active sessions have been revoked. The user may now sign in with the new password.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+              example:
+                success: true
+                message: >
+                  Password has been reset succesuully.
+                  You can now sign in with your new password.
+        '400':
+          description: >
+            The reset token is invalid, expired, or the account could not be verified. Possible error messages:
+              - `"Invalid or expried reset link. Please request a new one." - JWT failed verification
+              - `"Invalid reset link. Please request a new one."` - wrong tokien purpose or email mismatch
+              - `"ACcount not found. Please request a new reset link."` - account no longer exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                expiredToken:
+                  summary: Token expired or signaure invalid
+                  value:
+                    error: "Invalid or expired reset link. Please request a new one."
+                invalidToken:
+                  summary: Wrong purpose or email mismatch
+                  value:
+                    error: "Invalid reset link. Please request a new one."
+                accountNotFound:
+                  summary: Account no longer exists
+                  value:
+                    error: "Account not found. Please reqeust a new reset link."
+        '429':
+          description: >
+            Too many reset attempts from this IP address. This limit is database-persisted and survives server restarts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Too many attempts. Please try again later."
+        '500':
+          description: >
+            Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to reset password. Please try again."
+
+  /auth/staff-forgot-password:
+    post:
+      tags:
+        - Authentication
+      summary: Request staff password reset email
+      description: >
+        Sends a password reset email to a **tenant staff user** if a matching active account is found within the specified company.
+        This is the staff counterpart to `POST /auth/forgot-password`, which handles platform account owners.
+      operationId: StaffForgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffForgotPasswordRequest'
+      responses:
+        '200':
+          description: >
+            Always returned regardless of whether the company or staff user exists, the rate limit was hit, or an error occurred. This behavior is intentional to prevent emial enumeration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: true
+                message: >
+                  If a staff account exists with that email, we've sent password reset instructions.
+        '422':
+          description: >
+            Request body failed validation. `email` or `tenantSlug` is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/staff-reset-password:
+    post:
+      tags:
+        - Authentication
+      summary: Reset staff password using reset token
+      description: >
+        Completes the staff password reset flow initiated by `POST /auth/staff-forgot-password`. Accepts the JWT from the staff reset email and a new password, verifies all conditions within the tenant's isolated database context, then updates the password.
+      operationId: staffResetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffResetPasswordRequest'
+      responses:
+        '200':
+          description: >
+            Password successfully reset. Sessions are revoked if the user has a linked platform account (`accountId`). The user may now sign in with the new password.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: true
+                message: >
+                  Password has been reset successfully. You can now sign in with your new password.
+        '400':
+          description: >
+            The reset token is invalid, expired, or the user could not be verified. Possible error messages:
+              - `"Invalid or expired reset link. Please request a new one."` - JWT failed verification (expired or tampered)
+              - `"Invalid reset link. Please request a new one."` - wrong token purpose, missing fields, or email mismatch
+              - `"User not found. Please request a new reset link."` - user no longer exists or has been deactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                expiredToken:
+                  summary: Token expired or signature invalid
+                  value:
+                    error: "Invalid or expired reset link. Please request a new one."
+                invalidToken:
+                  summary: Wrong purpose, missing fields, or email mismatch
+                  value:
+                    error: "Invalid reset link. Please request a new one."
+                userNotFound:
+                  summary: User deactivated or removed
+                  value:
+                    error: "User not found. Please request a enw reset link."
+        '422':
+          description: >
+            Request body failed validation. `token` or `newPassword` is missing or does not meet requirements.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: >
+            Too many reset attempts from this IP address. Uses the same database-persisted rate limit config as `POST /auth/reset-password`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Too many attempts. Please try again later."
+        '500':
+          description: >
+            Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to reset password. Please try again."
 
 components:
   securitySchemes: 
@@ -25,3 +430,130 @@ components:
       name: next-auth.session-token
       description: >
         Session cookie set by NextAuth.js upon login.
+  
+  schemas:
+  # ---- Common ----
+  ErrorResponse:
+    type: object
+    properties:
+      error:
+        type: string
+        description: Human-readable error message.
+        example: "Unauthorized"
+    required:
+      - error
+  
+  # ---- Authentication ----
+  WsTokenResponse:
+    type: object
+    properties:
+      token:
+        type: string
+        description: >
+          A signed JWT valid for 1 hour. The token payload differes by user type: 
+            tenant-mode tokens include `tenantId`, `tenantSlug`, and `role`;
+            account-mode tokens include `accountId`.
+        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    required:
+      - token
+
+  ValidationResponse:
+    type: object
+    properties:
+      valid:
+        type: boolean
+        description: >
+          Indicates whether the current session is valid.
+          Always present in the response, even on error.
+      reason:
+        type: string
+        description: >
+          Human-readable explanation of why the session is invalid.
+          Only present when `valid` is `false`.
+    required:
+      - valid
+  
+  SuccessMessageResponse:
+    type: object
+    properties:
+      success:
+        type: boolean
+        example: true
+      message:
+        type: string
+        example: >
+          If an account exists with that email, we've sent password reset instructions.
+    required:
+      - success
+      - message
+  
+  ForgotPasswordRequest:
+    type: object
+    properties:
+      email:
+        type: string
+        format: email
+        description: >
+          The email address associated with the platform account.
+          The value is normalized (lowercased and trimmed) before processing.
+        example: "user@example.com"
+    required:
+      - email
+  
+  ResetPasswordRequest:
+    type: object
+    properties:
+      token:
+        type: string
+        description: >
+          The JWT from the password reset email link (query parameter `token` from the reset URL).
+          Must have `purpose: "password-reset"` in its payload.
+          Expires 1 hour after being issued.
+        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      newPassword:
+        type: string
+        format: password
+        description: >
+          The new password to set. Must meet the application's password complexity requirements as defined in `resetPasswordSchema`.
+        example: "NewsecureP@ss123"
+    required:
+      - token
+      - newPassword
+
+  StaffForgotPasswordRequest:
+    type: object
+    properties:
+      email:
+        type: string
+        format: idn-email
+        description: >
+          The email address of the staff member.
+          Normalized (lowercased and trimmed) before processing.
+        example: "staff@example.com"
+      tenantSlug:
+        type: string
+        description: >
+          The URL slug identifying the company this staff member belongs to.
+          Used as part of the rate limit key and to scope the database lookup. The company must exist and have `active` status.
+        example: "city-mart"
+    required:
+      - email
+      - tenantSlug
+  
+  StaffResetPasswordRequest:
+    type: object
+    properties:
+      token:
+        type: string
+        description: >
+          The JWT from the staff password reset email link (query parameter `token` from the reset URL). Must have `purpose: "staff-password-reset"` in its payload. Payload also contains `userId`, `email`, and `tenantId`. Expires 1 hour after being issued. Cannot be used iterchangeably with the platform reset token (`purpose: "password-reset"`).
+        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      newPassword:
+        type: string
+        format: password
+        description: >
+          The new password to set. Must meet the application's password complexity requirements as defined in `staffResetPasswordSchema`.
+        example: "NewSecureP@ss123"
+    required:
+      - token
+      - newPassword

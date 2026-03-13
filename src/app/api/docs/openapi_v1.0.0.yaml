@@ -861,6 +861,140 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example: "Verification failed. Please try again."
 
+  /lookup-tenant:
+    post:
+      tags:
+        - Authentication
+      summary: Look up companies associated with an email address
+      description: >
+        Returns a list of active companies (tenants) that the given email address is associated with.
+      operationId: lookupTenantByEmail
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LookupTenantRequest'
+      responses:
+        '200':
+          description: >
+            Lookup completed. Returns a list of companies.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LookupTenantResponse'
+              examples:
+                found:
+                  summary: Email associated with one or more companies
+                  value:
+                    tenants:
+                      - slug: "city-mart"
+                        name: "City Mart"
+                      - slug: "downtown-cafe"
+                        name: "Downtown Cafe"
+                notFound:
+                  summary: Email not registered or no active memberships
+                  value:
+                    tenants: []
+        '422':
+          description: >
+            Request body validation failed. `email` is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: >
+            Too many requests for this email within the last minute.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Too many requests. Please try again later."
+        '500':
+          description: >
+            Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Lookup failed"
+    get:
+      tags:
+        - Authentication
+      summary: Look up a company by slug (internal middleware use only)
+      description: >
+        Validates whether a given company slug exists and is active. 
+        **This endpoint is for internal server use only.**
+      operationId: lookupTenantBySlug
+      security: []
+      parameters:
+        - name: slug
+          in: query
+          required: true
+          schema: 
+            type: string
+          description: >
+            The company URL slug to validate.
+      responses:
+        '200':
+          description: >
+            Lookup completed. Check the `tenant` field — `null` means no active company exists for this slug.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LookupTenantBySlugResponse'
+              examples:
+                found:
+                  summary: Active company found for slug
+                  value:
+                    tenant:
+                      id: "b3d2e1f0-1234-5678-abcd-ef0123456789"
+                      slug: "city-mart"
+                notFound:
+                  summary: No active company for slug
+                  value:
+                    tenant: null
+        '400':
+          description: >
+            `slug` query parameter is missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Slug required"
+        '401':
+          description: >
+            Missing or invalid `x-internal-secret` header.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '429':
+          description: >
+            Too many requests for this slug within the last minute.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Too many requests"
+        '500':
+          description: >
+            Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Lookup failed"
+
 
 
 components:
@@ -1190,3 +1324,69 @@ components:
       required:
         - success
         - verificationToken
+    
+    LookupTenantRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: >
+            The email address to look up.
+          example: "jane@example.com"
+      required:
+        - email
+    
+    TenantSummary:
+      type: object
+      description: >
+        A minimal company record returned in the lookup response.
+      properties:
+        slug:
+          type: string
+          description: >
+            The company's URL slug.
+          example: "city-mart"
+        name:
+          type: string
+          description: >
+            The company's display name.
+      required:
+        - slug
+        - name
+    
+    LookupTenantResponse:
+      type: object
+      properties:
+        tenants:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantSummary'
+          description: >
+            List of active companies associated with the email address. Returns an **empty array** if the email is not registered or has no active company memberships.
+      required:
+        - tenants
+    
+    LookupTenantBySlugResponse:
+      type: object
+      properties:
+        tenant:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: The company's UUID.
+                  example: "b3d2e1f0-1234-5678-abcd-ef0123456789"
+                slug:
+                  type: string
+                  description: The company's URL slug.
+                  example: "city-mart"
+              required:
+                - id
+                - slug
+            - nullable: true
+              enum: [null]
+          description: >
+            The matched tenant object if found and active, or `null` if no active tenant exists for the given slug.

@@ -618,6 +618,250 @@ paths:
                   value:
                     error: "Failed to generate transfer token"
 
+  # ---- /register ----
+  /register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new platform account
+      description: >
+        Creats a new platform account for an owner or manager. **This endpoint is for platform account owners only.**
+      operationId: registerAccount
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: >
+            Account created successfully. The user must sign in separately — registration does not create a session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: >
+            Validation error or duplicate account detected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidCountry:
+                  summary: Unrecognized country code
+                  value:
+                    error: "Invalid country selected"
+                duplicateEmail:
+                  summary: Email already registered
+                  value:
+                    error: "This email is already registered"
+                duplicatePhone:
+                  summary: Phone already registered
+                  value:
+                    error: "This mobile number is already registered"
+        '422':
+          description: >
+            Request body failed schema validation. Required fields missing or incorrectly formatted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: >
+            Too many registration attempts from this IP address.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Too many registration attempts. Please try again later."
+        '500':
+          description: >
+            Unexpected server error during registration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Registration failed. Please try again."
+  
+  /register/check-email:
+    post:
+      tags:
+        - Authentication
+      summary: Check email availability for registration
+      description: >
+        Checks whether an email address is available for a new platform account registration.
+      operationId: checkEmailAvailability
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckEmailRequest'
+      responses:
+        '200':
+          description: >
+            Email availability check completed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckEmailResponse'
+              examples:
+                available:
+                  summary: Email is free to use
+                  value:
+                    available: true
+                taken:
+                  summary: Email already registered
+                  value:
+                    available: false
+        '422':
+          description: >
+            Request body validation failed. `email` is missing or not a valid email format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: >
+            Too many requests from this IP address within the last minute.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Too many requests. Please try again later."
+        '500':
+          description: >
+            Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to check email"
+
+  /register/send-otp:
+    post:
+      tags:
+        - Authentication
+      summary: Send OTP verification code to email
+      description: >
+        Generates a 5-digit OTP and sends it to the specified email address. 
+      operationId: sendOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendOtpRequest'
+      responses:
+        '200':
+          description: >
+            OTP successfully generated and sent to the email address. The code expires in 10 minutes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+              example:
+                success: true
+                message: "Verification code sent"
+        '422':
+          description: >
+            Request body validation failed. `email` or `type` is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description:
+            Too many OTP requests for this email and type within the last hour. Maximum 5 allowed per email per `type` per hour.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Too many verification attempts. Please try again later."
+        '500':
+          description:
+            Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to send verification code. Please try again."
+  
+  /register/verify-otp:
+    post:
+      tags:
+        - Authentication
+      summary: Verify OTP code and receive verification token
+      description: >
+        Verifies the 5-digit OTP submitted by the user against the hashed OTP stored in the database. On success, issues a short-lived `verificationToken` JWT that proves email ownership.
+      operationId: VerifyOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOtpRequest'
+      responses:
+        '200':
+          description: >
+            OTP verified successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyOtpResponse'
+        '400':
+          description: >
+            OTP verification failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  summary: No unverified OTP exists
+                  value:
+                    error: "No verification code found. Please request a new one."
+                expired:
+                  summary: OTP has expired
+                  value:
+                    error: "Verification code has expired. Please request a new one."
+                locked:
+                  summary: Too many incorrect attempts
+                  value:
+                    error: "Too many incorrect atttempts. Please request a new code."
+                incorrect:
+                  summary: Wrong code — attempts remaining
+                  value:
+                    error: "Incorrect code. 3 attempts remaining."
+        '422':
+          description: >
+            Request body validation failed. `email`, `otp`, or `type` is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: >
+            Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example: "Verification failed. Please try again."
+
+
 
 components:
   securitySchemes: 
@@ -796,3 +1040,153 @@ components:
       required:
         - transferToken
         - slug
+
+    RegisterRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+          description: >
+            The account owner's full name.
+          example: "Jane Smith"
+        email:
+          type: string
+          format: idn-email
+          description: >
+            Email address for the account.
+          example: "jane@example.com"
+        password:
+          type: string
+          format: password
+          description: >
+            Password for the account.
+          example: "SecureP@ss123"
+        country:
+          type: string
+          description: >
+            ISO country code.
+          example: "KR"
+        phone:
+          type: string
+          description: >
+            Mobile phone number.
+          example: "+82771234567"
+        verficationToken:
+          type: string
+          description: >
+            Optional. JWT issued by the OTP verification flow.
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        tosAcceptedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            ISO 8601 timestamp of when the user accepted the Terms of Service. Stored as `null` if not provided.
+          example: "2026-03-12T09:00:00.000Z"
+      required:
+        - fullName
+        - email
+        - password
+        - country
+        - phone
+    
+    RegisterResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Account created successfully. Please sign in."
+        accountId:
+          type: string
+          format: uuid
+          description: >
+            The ID of the newly created account.
+            Note: registration does not auto-sign-in — the user must navigate to the login page.
+          example: "a1b2c3d4-5678-90ab-cdef-1234567890ab"
+      required:
+        - success
+        - message
+        - accountId
+    
+    CheckEmailRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: >
+            The email address to check for availability.
+          example: "jane@example.com"
+      required:
+        - email
+    
+    CheckEmailResponse:
+      type: object
+      properties:
+        available:
+          type: boolean
+          description: >
+            `true` if the email address is not yet registered and may be used for a new account. `false` if the email is already taken.
+          example: true
+      required:
+        - available
+    
+    SendOtpRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: >
+            The email address to send the OTP to. Normalized (lowercased and trimmed) before processing.
+          example: "jane@example.com"
+        type:
+          type: string
+          description: >
+            The verification purpose. Scopes both the OTP record and the rate limit — a user's limit for `"registration"` and `"email-change"` are tracked independently.
+          example: "registration"
+      required:
+        - email
+        - type
+    
+    VerifyOtpRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: >
+            The email address that received the OTP.
+          example: "jane@example.com"
+        otp:
+          type: string
+          description: >
+            The 5-digit verfication code received via email.
+          example: "47291"
+        type:
+          type: string
+          description: >
+            The verification purpose. Mismatched types will fail even if the OTP code is correct.
+          example: "registration"
+      required:
+        - email
+        - otp
+        - type
+    
+    VerifyOtpResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        verificationToken:
+          type: string
+          description: >
+            A short-lived JWT (expires in **15 minutes**) signed with HS256.
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      required:
+        - success
+        - verificationToken

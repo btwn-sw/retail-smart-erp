@@ -1168,6 +1168,771 @@ paths:
               example:
                 error: "Internal server error"
 
+  /users:
+    get:
+      tags:
+        - Authentication
+      summary: List tenant staff users
+      operationId: listUsers
+      description: >
+        Returns all staff users for the authenticated user's tenant.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: role
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [owner, manager, cashier, technician]
+          description: >
+            Filter results to users with this specific role.
+          example: "cashier"
+        - name: activeOnly
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: Set to `true` to return only active users.
+          example: "true"
+        - name: includeWarehouses
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: >
+            Set to `ture` to include warehouse assignment data for each user.
+          example: "true"
+      responses:
+        '200':
+          description: >
+            User list returned successfully.
+          content:
+            application/json:
+              schema:
+                oneOf: 
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/UserObject'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/UserWithWarehouses'
+        '401':
+          description: >
+            Session is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: >
+            Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to fetch users"
+    post:
+      tags:
+        - Authentication
+      summary: Add or invite a staff user
+      description: >
+        Adds a new staff member to the tenant by email and role. 
+      operationId: createOrInviteUser
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInviteRequest'
+      responses:
+        '200':
+          description: >
+            User added immediately (mode: added) or invite sent (mode: invited).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AddedUserResponse'
+                  - $ref: '#/components/schemas/InvitedUserResponse'
+        '400':
+          description: >
+            Validation error, duplicate user, duplicate invite, or forbidden role ('owner').
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                ownerRoleForbidden:
+                  summary: Owner role forbidden
+                  value:
+                    error: "Invalid role. Owner role can only be assigned through account management."
+                duplicateUser:
+                  summary: User already exists in tenant
+                  value:
+                    error: "A user with this email already exists in this company"
+                duplicateInvite:
+                  summary: Pending invite already exists
+                  value:
+                    error: "An invitation has already been sent to this email"
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '402':
+          description: >
+            Tenant has reached its user quota limit for the current plan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: >
+            Caller lacks 'manageUsers' permission, or attempted to assign a role equal to or above their own.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "You cannot create users with this role"
+        '422':
+          description: Request body failed schema validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to create user"
+  
+  /users/{id}:
+    get:
+      tags:
+        - Authentication
+      summary: Get a single user
+      description: Returns a single staff user by ID.
+      operationId: getUserById
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: THe user's ID.
+          example: "usr_01HZ4XY9"
+      responses:
+        '200':
+          description: User found successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserObject'
+              example:
+                id: "usr_01HZ4XY9"
+                email: "john.smith@example.com"
+                fullName: "John Smith"
+                role: "cashier"
+                isActive: true
+                lastLoginAt: "2026-03-10T08:30:00Z"
+                createdAt: "2025-11-01T12:00:00Z"
+                updatedAt: "2026-03-10T09:00:00Z"
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '404':
+          description: User not found or belongs to another tenant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "User not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to fetch user"
+    put:
+      tags:
+        - Authentication
+      summary: Update a user
+      description: Updates one or more fields of a staff user.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The user's ID.
+          example: "usr_02MZ5YZ7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+            example:
+              fullName: "Jane Smith"
+              email: "jane@example.com"
+              role: "manager"
+              isActive: true
+              password: "NewSecureP@ss123"
+              expectedUpdatedAt: "2026-03-10T09:00:00Z"
+      responses:
+        '200':
+          description: User updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserObject'
+              example:
+                id: "usr_02MZ5YZ7"
+                email: "jane@example.com"
+                fullName: "Jane Smith"
+                role: "manager"
+                isActive: true
+                lastLoginAt: "2026-03-10T08:30:00Z"
+                createdAt: "2025-11-01T12:00:00Z"
+                updatedAt: "2026-03-17T10:00:00Z"
+        '400':
+          description: >
+            Validation error, self-role/status modification attempt, duplicate email, or weak password.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                cannotModifyOwnRole:
+                  summary: Cannot change own role
+                  value:
+                    error: "You cannot change your own role"
+                cannotModifyOwnStatus:
+                  summary: Cannot change own status
+                  value:
+                    error: "You cannot change your own status"
+                emailExists:
+                  summary: Email already in use
+                  value:
+                    error: "A user with this email already eixsts"
+                invalidPassword:
+                  summary: Password too weak
+                  value:
+                    error: "Password must be at least 8 characters"
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '403':
+          description: Lacks `manageUsers` permission or attempted to modify a user at or above caller's rank.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noPermission:
+                  summary: Missing manageUsers permission
+                  value: 
+                    error: "Forbidden"
+                insufficientRank:
+                  summary: Target user outranks caller
+                  value:
+                    error: "You do not have permission to modify this user"
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "User not found"
+        '409':
+          description: >
+            Concurrent edit detected — another user modified this record after the client last fetched it. Refresh and try.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictErrorResponse'
+              example:
+                error: "This user was modified by another user. Please refresh and try again."
+                code: "CONFLICT"
+        '422':
+          description: >
+            Request body or path parameter failed schema validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to update user"
+    delete:
+      tags:
+        - Authentication
+      summary: Deactivate a user
+      description: >
+        Soft-deletes a staff user by setting `isActive` to false.
+      operationId: deactivateUser
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The user's ID.
+          example: "usr_01HZ4XY9"
+      responses:
+        '200':
+          description: User deactivated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteSucessResponse'
+              example:
+                success: true
+        '400':
+          description: >
+            Caller attempted to deactivate their own account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "You cannot deactivate your own account"
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '403':
+          description: Insufficient permission or rank.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noPermission:
+                  summary: Missing manageUsers permission
+                  value:
+                    error: "Forbidden"
+                insufficientRank:
+                  summary: Target user outranks caller
+                  value:
+                    error: "You do not have permission to deactivate this user"
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "User not found"
+        '422':
+          description: Invalid path parameter format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to delete user"
+
+  /users/{id}/warehouses:
+    get:
+      tags:
+        - Authentication
+      summary: Get user warehouse assignments
+      operationId: getUserWarehouses
+      description: >
+        Returns a user's direct warehouse assignments and POS profile assignments. Both arrays are returned in a single response.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The user's ID.
+          example: "usr_01HZ4XY9"
+      responses:
+        '200':
+          description: >
+            Warehouse and POS profile assignments returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWarehousesResponse'
+              example:
+                assignments:
+                  - userId: "usr_01HZ4XY9"
+                    warehouseId: "wh_01ABC123"
+                    isActive: true
+                    warehouse:
+                      id: "wh_01ABC123"
+                      name: "Main Warehouse"
+                      code: "WH-MAIN"
+                      isDefault: true
+                posProfileAssignments:
+                  - userId: "usr_01HZ4XY9"
+                    posProfileId: "pos_01XYZ789"
+                    posProfile:
+                      id: "pos_01XYZ789"
+                      name: "Front Counter POS"
+                      warehouseId: "wh_01ABC123"
+                      warehouse:
+                        id: "wh_01ABC123"
+                        name: "Main Warehouse"
+                        code: "WH-MAIN"
+                        isDefault: true
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '404':
+          description: User not found or belongs to another tenant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "User not found"
+        '422':
+          description: Invalid path parameter format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example: "Failed to fetch user warehouse assignments"
+    put:
+      tags:
+        - Authentication
+      summary: Replace user warehouse assignments
+      description: >
+        Replaces a user's complete set of warehouse assignments with the provided list. This is a full-replace operation, not additive.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The user's ID.
+          example: "usr_01HZ4XY9"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserWarehouseRequest'
+            example:
+              warehouseIds: ["wh_01ABC123", "wh_02DEF456"]
+      responses:
+        '200':
+          description: >
+            Warehouse assignments replaced successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateUserWarehouseResponse'
+              example:
+                assignments:
+                  - userId: "usr_01HZ4XY9"
+                    warehouseId: "wh_01ABC123"
+                    isActive: true
+                    warehouse:
+                      id: "wh_01ABC123"
+                      name: "Main Warehouse"
+                      code: "WH-MAIN"
+                      isDefault: true
+                  - userId: "usr_01HZ4XY9"
+                    warehouseId: "wh_02DEF456"
+                    isActive: true
+                    warehouse:
+                      id: "wh_02DEF456"
+                      name: "North Branch Warehouse"
+                      code: "WH-NORTH"
+                      isDefault: false
+                added: 2
+                removed: 1
+        '400':
+          description: >
+            One or more provided warehouse IDs do not exist in this tenant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "One or more warehouses not found"
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "User not found"
+        '422':
+          description: Request body failed schema validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to update user warehouse assignments"
+
+  /users/invites:
+    get:
+      tags:
+        - Authentication
+      operationId: listUserInvites
+      summary: List pending staff invites
+      description: >
+        Returns all non-accepted staff invites for the current tenant, including both pending and expired invites.
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Invite list returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingInviteItem'
+              example:
+                - id: "inv_01GHT890"
+                  email: "newstaff@example.com"
+                  role: "cashier"
+                  expiresAt: "2026-03-24T10:00:00Z"
+                  createdAt: "2026-03-17T10:00:00Z"
+                  status: "pending"
+                - id: "inv_02JKL456"
+                  email: "oldstaff@example.com"
+                  role: "manager"
+                  expiresAt: "2026-03-10T10:00:00Z"
+                  createdAt: "2026-03-03T10:00:00Z"
+                  status: "expired"
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to fetch invites"
+    delete:
+      tags:
+        - Authentication
+      operationId: cancelUserInvite
+      summary: Cancel a pending staff invite
+      description: >
+        Cancels a staff invite for the current tenant by invite ID, passed as the `id` query parameter.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the invite to cancel.
+          example: "inv_01GHT890"
+      responses:
+        '200':
+          description: Invite cancelled successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteSuccessResponse'
+              example:
+                success: true
+        '400':
+          description: >
+            Missing invite ID or invite has already been accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingId:
+                  summary: Invite ID not provided
+                  value:
+                    error: "Invite ID is required"
+                alreadyAccepted:
+                  summary: Invite already accepted
+                  value:
+                    error: "Cannot cancel an already accepted invite"
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '404':
+          description: Invite not found, or belongs to another tenant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invite not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to cancel invite"
+      
+  /users/invites/{id}/resend:
+    post:
+      tags:
+        - Authentication
+      summary: Resend a staff invite email
+      operationId: resendUserInvite
+      description: >
+        Extends a staff invite's expiry by 7 days from the current time and re-sends the invite email to the original recipient.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the invite to resend.
+          example: "inv_01GHT890"
+      responses:
+        '200':
+          description: >
+            Expiry extended and email resent successfully. Does not guarantee email delivery.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResendInviteResponse'
+              example:
+                success: true
+                expiresAt: "2026-03-25T10:00:00Z"
+        '400':
+          description: Invite has already been accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invite has already been accepted"
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '404':
+          description: >
+            Invite not found, or belongs to another tenant. Both cases return the same message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invite not found"
+        '422':
+          description: Invalid path parameter format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to resend invite"
+
 
 
 
@@ -1715,3 +2480,438 @@ components:
         - email
         - companies
 
+    UserObject:
+      type: object
+      description: >
+        A single staff user record belonging to the current tenant.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "usr_01HZ4XY9"
+        email:
+          type: string
+          format: email
+          example: "john.smith@example.com"
+        fullName:
+          type: string
+          example: "John Smith"
+        role: 
+          type: string
+          enum: [owner, manager, cashier, technician]
+          example: "cashier"
+        isActive:
+          type: boolean
+          example: true
+        lastLoginAt:
+          type: string
+          format: date-time
+          example: "2026-03-10T08:30:00Z"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-11-01T12:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-03-10T09:00:00Z"
+      required:
+        - id
+        - email
+        - fullName
+        - role
+        - isActive
+        - createdAt
+        - updatedAt
+    
+    WarehouseAssignment:
+      type: object
+      description: >
+        A warehouse assignment linked to a user.
+      properties:
+        warehouseId:
+          type: string
+          format: uuid
+          example: "wh_01ABC123"
+        warehouse:
+          $ref: '#/components/schemas/WarehouseObject'
+      required:
+        - warehouseId
+        - warehouse
+    
+    UserWithWarehouses:
+      allOf:
+        - $ref: '#/components/schemas/UserObject'
+        - type: object
+          properties:
+            warehouses:
+              type: array
+              description: >
+                Warehouse assignments for this user. Only present when `includeWarehouses` is `true`.
+              items:
+                $ref: '#/components/schemas/WarehouseAssignment'
+              example: []
+    
+    CreateInviteRequest:
+      type: object
+      description: >
+        Request body to add or invite a staff member.
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email of the staff member to add or invite. 
+        role:
+          type: string
+          enum: [manager, cashier, technician]
+          description: Role to assign.
+          example: "cashier"
+        warehouseIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Optional list of warehouse IDs to assign to the new user.
+          example: ["wh_01ABC123", "wh_02DEF456"]
+      required:
+        - email
+        - role
+    
+    AddedUserResponse:
+      type: object
+      description: >
+        Returned when the invited email already has a platform account.
+      properties:
+        mode: 
+          type: string
+          enum: [added]
+          example: "added"
+        user:
+          $ref: '#/components/schemas/UserObject'
+      required:
+        - mode
+        - user
+    
+    InviteDetail:
+      type: object
+      description: Details of a pending staff invite.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "inv_01GHT890"
+        email:
+          type: string
+          format: email
+          example: "newstaff@example.com"
+        role:
+          type: string
+          enum: [manager, cashier, technician]
+          example: "cashier"
+        expiresAt:
+          type: string
+          format: date-time
+          description: Invite Link expires 7 days after creation.
+          example: "2026-03-24T10:00:00Z"
+        inviteUrl:
+          type: string
+          format: uri
+          description: >
+            Full URL the invitee visits to accept.
+          example: "https://app.example.com/invite/a1b2c3d4e5f6..."
+      required:
+        - id
+        - email
+        - role
+        - expiresAt
+        - inviteUrl
+    
+    InvitedUserResponse:
+      type: object
+      description: >
+        Returned when the invited email has no platform account yet. An invite record is created and an email is sent.
+      properties:
+        mode:
+          type: string
+          enum: [invited]
+          example: "invited"
+        invite:
+          $ref: '#/components/schemas/InviteDetail'
+      required:
+        - mode
+        - invite
+    
+    UpdateUserRequest:
+      type: object
+      description: Request body for updating a user.
+      properties:
+        fullName:
+          type: string
+          example: "Jane Smith"
+        email:
+          type: string
+          format: email
+          example: “jane@example.com"
+        role:
+          type: string
+          enum: [manager, cashier, technician]
+          description: >
+            Cannot be set to `owner` via this endpoint. A caller cannot change their own role.
+          example: "manager"
+        isActive:
+          type: boolean
+          description: A caller cannot change their own isActive status.
+          example: true
+        password:
+          type: string
+          description: New plaintext password.
+          example: "NewSecureP@ss123"
+        expectedUpdatedAt:
+          type: string
+          format: date-time
+          description: Optional optimistic lock token.
+          example: "2026-03-10T09:00:00Z"
+    
+    ConflictErrorResponse:
+      type: object
+      description: >
+        Returned when a concurrent edit is detected (optimistic locking).
+      properties:
+        error:
+          type: string
+          example: "This user was modified by another user. Please refresh and try again"
+        code:
+          type: string
+          enum: [CONFLICT]
+          example: "CONFLICT"
+      required:
+        - error
+        - code
+    
+    DeleteSucessResponse:
+      type: object
+      description: >
+        Returned on successful soft-delete (deactivation).
+      properties:
+        success:
+          type: boolean
+          example: true
+      required:
+        - success
+    
+    WarehouseObject:
+      type: object
+      description: >
+        A warehouse record embedded inside an assignment.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "wh_01ABC123"
+        name:
+          type: string
+          example: "Main Warehouse"
+        code:
+          type: string
+          example: "WH-MAIN"
+        isDefault:
+          type: boolean
+          example: true
+      required:
+        - id
+        - name
+        - code
+        - isDefault
+    
+    UserWarehouseAssignment:
+      type: object
+      description: >
+        A direct warehouse-to-user assignment row, with the full warehouse record eager-loaded.
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: "usr_01HZ4XY9"
+        warehouseId:
+          type: string
+          format: uuid
+          example: "wh_01ABC123"
+        warehouse:
+          $ref: '#/components/schemas/WarehouseObject'
+        isActive:
+          type: boolean
+          example: true
+      required:
+        - userId
+        - warehouseId
+        - warehouse
+        - isActive
+    
+    PosProfileObject:
+      type: object
+      description: >
+        A POS profile record with its associated warehouse eager-loaded.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "pos_01XYZ789"
+        name:
+          type: string
+          example: "Front Counter POS"
+        warehouseId:
+          type: string
+          format: uuid
+          example: "wh_01ABC123"
+        warehouse:
+          $ref: '#/components/schemas/WarehouseObject'
+      required:
+        - id
+        - name
+        - warehouseId
+        - warehouse
+    
+    PosProfileUserAssignment:
+      type: object
+      description: >
+        A POS profile-to-user assignment row, with the full POS profile (and its warehouse) eager-loaded.
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: "usr_01HZ4XY9"
+        posProfileId:
+          type: string
+          format: uuid
+          example: "pos_01XYZ789"
+        posProfile:
+          $ref: '#/components/schemas/PosProfileObject'
+      required:
+        - userId
+        - posProfileId
+        - posProfile
+    
+    UserWarehousesResponse:
+      type: object
+      description: >
+        Combined response containing both direct warehouse assignments and POS profile assignments for a user.
+      properties:
+        assignments:
+          type: array
+          description: Direct warehouse-to-user assignments.
+          items:
+            $ref: '#/components/schemas/UserWarehouseAssignment'
+        posProfileAssignments:
+          type: array
+          description: >
+            POS profile-to-user assginemtns, each including the POS profile's associated warehouse.
+          items:
+            $ref: '#/components/schemas/PosProfileUserAssignment'
+      required:
+        - assignments
+        - posProfileAssignments
+    
+    UpdateUserWarehouseRequest:
+      type: object
+      description: >
+        Request body to replace a user's warehouse assignments. This is a full-replace operation — the provided list becomes the user's complete set of warehouse assignments.
+      properties:
+        warehouseIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: >
+            Complete desired set of warehouse IDs for this user.
+          example: ["wh_01ABC123", "wh_02DEF456"]
+      required:
+        - warehouseIds
+    
+    UpdateUserWarehouseResponse:
+      type: object
+      description: >
+        Result of a warehouse assignment replacement, including the updated full assignment list and a summary of changes made.
+      properties:
+        assignments:
+          type: array
+          description: >
+            Updated full list of warehouse assignments after the operation.
+          items:
+            $ref: '#/components/schemas/UserWarehouseAssignment'
+        added:
+          type: integer
+          description: >
+            Number of new warehouse assignments created.
+          example: 2
+        removed:
+          type: integer
+          description: >
+            Number of warehouse assignments deleted.
+          example: 1
+      required:
+        - assignments
+        - added
+        - removed
+    
+    PendingInviteItem:
+      type: object
+      description: >
+        A single staff invite enriched for the current tenant.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "inv_01GHT890"
+        email:
+          type: string
+          format: email
+          example: "newstaff@example.com"
+        role:
+          type: string
+          example: "cashier"
+        expiresAt:
+          type: string
+          format: date-time
+          example: "2026-03-24T10:00:00Z"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-03-17T10:00:00Z"
+        status:
+          type: string
+          enum: [pending, expired]
+          description: Computed server-side.
+          example: "pending"
+      required:
+        - id
+        - email
+        - role
+        - expiresAt
+        - createdAt
+        - status
+    
+    DeleteSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+      required:
+        - success
+
+    ResendInviteResponse:
+      type: object
+      description: >
+        Returned on successful resend. Confirms the expiry was extended and provides the new expiry timestamp.
+      properties:
+        success:
+          type: boolean
+          example: true
+        expiresAt:
+          type: string
+          format: date-time
+          description: New expiry timestamp.
+          example: "2026-03-25T10:00:00Z"
+      required:
+        - success
+        - expiresAt

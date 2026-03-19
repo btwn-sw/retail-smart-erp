@@ -861,6 +861,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example: "Verification failed. Please try again."
 
+  # ---- /lookup-tenant ----
   /lookup-tenant:
     post:
       tags:
@@ -995,6 +996,7 @@ paths:
               example:
                 error: "Lookup failed"
 
+  # ---- /invites ----
   /invites/{token}:
     get:
       tags:
@@ -1168,6 +1170,7 @@ paths:
               example:
                 error: "Internal server error"
 
+  # ---- /users ----
   /users:
     get:
       tags:
@@ -1932,6 +1935,300 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: "Failed to resend invite"
+
+  # ---- /custom-roles ----
+  /custom-roles:
+    post:
+      tags:
+        - Authentication
+      summary: Create a custom role
+      operationId: CreateCustomRole
+      description: >
+        Creates a new custom role for the tenant with optional permission overrides.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomRoleRequest'
+            example:
+              name: "Front Counter Staff"
+              baseRole: "cashier"
+              description: "Staff assigned to the front counter only"
+              color: "#FF5733"
+              permissions:
+                viewReports: true
+                manageInvetory: false
+      responses:
+        '201':
+          description: Custom role created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomRoleObject'
+              example:
+                id: "cr_01ABC123"
+                tenantId: "ten_01XYZ789"
+                name: "Front Counter Staff"
+                slug: "front_counter_staff"
+                baseRole: "cashier"
+                description: "Staff assigned to the front counter only"
+                color: "#FF5733"
+                createdBy: "usr_01HZ4XY9"
+        '400':
+          description: >
+            baseRole is 'owner', slug is empty (invalid name), or a role with this name already exists.
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                ownerBaseRole:
+                  summary: Owner used as base role
+                  value:
+                    error: "Cannot create custom roles based on owner"
+                invalidName:
+                  summary: Name produces empty slug
+                  value:
+                    error: "Invalid role name"
+                duplicateSlug:
+                  summary: Role name already exists
+                  value:
+                    error: "A custom role with this name already exists"
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '422':
+          description: Request body failed schema validation.
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to create custom role"
+    get:
+      tags:
+        - Authentication
+      summary: List custom roles
+      operationId: listCustomRole
+      description: >
+        Returns all custom roles for the current tenant, each enriched with their permission overrides as a flat key-value map.
+      security: 
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Custom roles returned successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomRoleWithPermissions'
+              example:
+                - id: "cr_01ABC123"
+                  tenantId: "ten_01XYZ789"
+                  name: "Front Counter Staff"
+                  slug: "front_counter_staff"
+                  baseRole: "cashier"
+                  description: "Staff assigned to the front counter only"
+                  color: "#FF5733"
+                  createdBy: "usr_01HZ4XY9"
+                  permissions:
+                    viewReports: true
+                    manageInventory: false
+                - id: "cr_02DEF456"
+                  tenantId: "ten_01XYZ789"
+                  name: "Warehouse Manager"
+                  slug: "warehouse_manager"
+                  baseRole: null
+                  color: null
+                  createdBy: "usr_01HZ4XY9"
+                  permission: {}
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to fetch custom roles"
+
+  /custom-roles/{id}:
+    put:
+      tags:
+        - Authentication
+      summary: Update a custom role
+      operationId: updateCustomRole
+      description: >
+        Updates a custom role's fields and/or permission overrides. All fiedls are optional.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The custom role's ID.
+          example: "cr_01ABC123"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomRoleRequest'
+            example:
+              name: "Front Counter Staff"
+              baseRole: "cashier"
+              description: "Staff assigned to the front counter only"
+              color: "#FF5733"
+              inActive: true
+              permissions:
+                viewReports: true
+                manageInventory: false
+      responses:
+        '200':
+          description: Custom role updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomRoleObject'
+              example:
+                id: "cr_01ABC123"
+                tenantId: "ten_01XYZ789"
+                name: "Front Counter Staff"
+                slug: "front_counter_staff"
+                baseRole: "cashier"
+                description: "Staff assigned to the front counter only"
+                color: "#FF5733"
+                isActive: true
+                createdBy: "usr_01HZ4XY9"
+        '400':
+          description: baseRole is 'owner'.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Cannot base custom roles on owner"
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '404':
+          description: Custom role not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Custom role not found"
+        '422':
+          description: Request body or path parameter failed schema validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to update custom role"
+    delete:
+      tags:
+        - Authentication
+      summary: Delete a custom role
+      operationId: deleteCustomRole
+      description: >
+        Permanently deletes a custom role and its permission overrides. This is a hard delete — the role row is physically removed and cannot be recovered.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The custom role's ID.
+          example: "cr_01ABC123"
+      responses:
+        '200':
+          description: Custom role deleted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteSuccessResponse'
+              example:
+                success: true
+        '400':
+          description: Role has users assigned — reassign users before deleting.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example: 
+                error: "Cannot delete a custom role that has users assigned to it. Reassign users first."
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example: 
+                error: "Unauthorized"
+        '404':
+          description: Custom role not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example: 
+                error: "Custom role not found"
+        '422':
+          description: Invalid path parameter format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example: 
+                error: "Failed to delete custom role"
+
 
 
 
@@ -2915,3 +3212,136 @@ components:
       required:
         - success
         - expiresAt
+    
+    CustomRoleObject:
+      type: object
+      description: A custom role record as stored in the database.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "cr_01ABC123"
+        tenantId:
+          type: string
+          format: uuid
+          example: "ten_01XYZ789"
+        name:
+          type: string
+          example: "Front Counter Staff"
+        slug:
+          type: string
+          description: Server-generated from name.
+          example: "front_counter_staff"
+        baseRole:
+          type: string
+          enum: [manager, cashier, technician]
+          description: >
+            The built-in role this custom role inherits from. Cannot be 'owner'.
+          example: "cashier"
+        description:
+          type: string
+          nullable: true
+          example: "Staff assigned to the front counter only"
+        color:
+          type: string
+          nullable: true
+          example: "#FF5733"
+        createdBy:
+          type: string
+          format: uuid
+          example: "usr_01HZ4XY9"
+      required:
+        - id
+        - tenantId
+        - name
+        - slug
+        - baseRole
+        - createdBy
+    
+    CustomRoleWithPermissions:
+      allOf:
+        - $ref: '#/components/schemas/CustomRoleObject'
+        - type: object
+          properties:
+            permissions:
+              type: object
+              description: >
+                Permission overrides for this role as a flat key-value map.
+              additionalProperties:
+                type: boolean
+              example:
+                viewReports: true
+                manageInventory: true
+          required:
+            - permissions
+    
+    CreateCustomRoleRequest:
+      type: object
+      description: Request body to create a new custom role.
+      properties:
+        name:
+          type: string
+          description: Display name of the custom role.
+          example: "Front Counter Staff"
+        baseRole:
+          type: string
+          enum: [manager, cashier, tachnician]
+          description: The built-in role to inherit from. Cannot be 'owner'.
+          example: "cashier"
+        description:
+          type: string
+          nullable: true
+          example: "Staff assigned to the front counter only"
+        color:
+          type: string
+          nullable: true
+          description: Optional display color for the role (e.g. hex code).
+          example: "#FF5733"
+        permissions:
+          type: object
+          description: >
+            Optioanl permission overrides as a flat key-value map. Unknown keys and owner-only permissions are silently skipped.
+          additionalProperties:
+            type: boolean
+          example:
+            viewReports: true
+            manageInventory: false
+      required:
+        - name
+        - baseRole
+    
+    UpdateCustomRoleRequest:
+      type: object
+      description: Request body to update a custom role.
+      properties:
+        name:
+          type: string
+          description: >
+            When updated, the slug is automatically regenerated server-side.
+          example: "Front Counter Staff"
+        baseRole:
+          type: string
+          enum: [manager, cashier, technician]
+          description: Cannot be 'owner'.
+          example: "cashier"
+        description:
+          type: string
+          nullable: true
+          example: "Staff assigned to the front counter only"
+        color:
+          type: string
+          nullable: true
+          example: "#FF5733"
+        isActive:
+          type: boolean
+          description: Set to false to deactivate the custom role.
+          example: true
+        permissions:
+          type: object
+          description: >
+            Full replacement set of permission overrides. If provided, replaces all existing overrides. If omitted, existing overrides are unchanged.
+          additionalProperties:
+            type: boolean
+          example:
+            viewReports: true
+            manageInventory: false

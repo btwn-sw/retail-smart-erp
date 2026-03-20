@@ -2229,6 +2229,231 @@ paths:
               example: 
                 error: "Failed to delete custom role"
 
+  # ---- /role-permissions ----
+  /role-permissions:
+    get:
+      tags:
+        - Authentication
+      summary: Get all role permission overrides
+      operationId: getRolePermissions
+      description: >
+        Returns the full permission state for the tenant in three sections: builtinOverrides, customRoles, and systemDefaults.
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Role permissions returned sccussfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolePermissionsResponse'
+              example:
+                builtinOverrides:
+                  manager:
+                    viewReports: false
+                  cashier:
+                    manageInventory: true 
+                customRoles:
+                  - id: "cr_01ABC123"
+                    name: "Front Counter Staff"
+                    slug: "front_counter_staff"
+                    baseRole: "cashier"
+                    description: "Staff assigned to the front counter only"
+                    color: "#FF5733"
+                    isActive: "true"
+                    permissions:
+                      viewReports: true
+                      manageInventory: false
+                systemDefaults:
+                  viewReports: ["owner", "manager"]
+                  manageInventory: ["owner", "manager", "technician"]
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example: 
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example: 
+                error: "Failed to fetch role permissions"
+    put:
+      tags:
+        - Authentication
+      summary: Update built-in permission overrides
+      operationId: updateRolePermissions
+      description: >
+        Replaces permission overrides for a single built-in role.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRolePermissionsRequest'
+            example:
+              role: "manager"
+              overrides:
+                viewReports: true
+                managerInventory: false
+      responses:
+        '200':
+          description: Permission overrides updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteSuccessResponse'
+              example:
+                success: true
+        '400':
+          description: >
+            role is 'owner', permission key is invalid, or owner-only permission was granted to a non-owner role.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                ownerRole:
+                  summary: Cannot modify owner permissions
+                  value:
+                    error: "Owner permissions cannot be modified"
+                invalidKey:
+                  summary: Unknown permission key
+                  value:
+                    error: "Invalid permission: someUnknownKey"
+                ownerOnlyPermission:
+                  summary: Owner-only permission granted to non-owner
+                  value:
+                    error: "Permission \"manageOwners\" can only be assigned to owners"
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '422':
+          description: Request body failed schema validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to update role permissions"
+
+  /role-permissions/effective:
+    get:
+      tags:
+        - Authentication
+      summary: Get effective permissions for current user
+      operationId: getEffectivePermissions
+      description: >
+        Returns the fully resolved permission set for the currently authenticated user as a flat key-value map.
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Effective permissions returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectivePermissionsResponse'
+              example:
+                permissions:
+                  viewReports: true
+                  managaInventory: false
+                  manageTenant: false
+                  manageUsers: true
+        '401':
+          description: No authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to get permissions"
+
+  /role-permissions/reset:
+    post:
+      tags:
+        - Authentication
+      summary: Reset role permissions to system defaults
+      operationId: resetRolePermissions
+      description: >
+        Resets a built-in role's permissions to system defaults by deleting all permission override rows for that role.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetRolePermissionsRequest'
+            example:
+              role: "manager"
+      responses:
+        '200':
+          description: >
+            Role permissions reset to system defaults successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteSuccessResponse'
+              example:
+                success: true
+        '400':
+          description: role is 'owner'.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Owner permissions cannot be modified"
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '422':
+          description: Request body failed schema validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to reset role permissions"
+
 
 
 
@@ -3272,6 +3497,9 @@ components:
               example:
                 viewReports: true
                 manageInventory: true
+            isActive:
+              type: boolean
+              example: true
           required:
             - permissions
     
@@ -3345,3 +3573,101 @@ components:
           example:
             viewReports: true
             manageInventory: false
+    
+    RolePermissionsResponse:
+      type: object
+      description: >
+        Full permission state for the tenant, containing three sections: built-in role overrides, custom roles with permissions, and the system default permission map.
+      properties:
+        builtinOverrides:
+          type: object
+          description: >
+            Permission overrides applied to built-in roles (manager, cashier, technician), grouped by role name.
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: boolean
+          example:
+            manager:
+              viewReports: false
+            cashier:
+              manageInventory: true
+        customRoles:
+          type: array
+          description: >
+            All custom roles for the tenant, each enriched with their permission overrides.
+          items:
+            $ref: '#/components/schemas/CustomRoleWithPermissions'
+        systemDefaults:
+          type: object
+          description: >
+            The full system-default permission map. Shows which built-in roles have each permission by default, before any overrides are applied.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            viewReports: ["owner", "manager"]
+            manageInventory: ["owner", "manager", "technician"]
+      required:
+        - builtinOverrides
+        - customRoles
+        - systemDefaults
+    
+    UpdateRolePermissionsRequest:
+      type: object
+      description: >
+        Request body to replace permission overrides for a single built-in role. Only applies to built-in roles — not custom roles.
+      properties:
+        role:
+          type: string
+          enum: [manager, cashier, technician]
+          description: >
+            The built-in role to update. Cannot be 'owner'.
+          example: "manager"
+        overrides:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: >
+            Complete desired permission override set for this role. This is a full replace — existing overrides are deleted before inserting the new set.
+          example:
+            viewReports: true
+            manageInventory: false
+      required:
+        - role
+        - overrides
+    
+    EffectivePermissionsResponse:
+      type: object
+      description: >
+        The fully resolved permission set for the currently authenticated user.
+      properties:
+        permissions:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: >
+            Flat map of permission keys to their resolved boolean values.
+          example:
+            viewReports: true
+            manageInventory: false
+            manageTenant: false
+            manageUsers: true
+      required:
+        - permissions
+    
+    ResetRolePermissionsRequest:
+      type: object
+      description: >
+        Request body to reset a built-in role's permissions to system defaults.
+      properties:
+        role:
+          type: string
+          enum: [manager, cashier, techinician]
+          description: >
+            The built-in role to reset. Cannot be 'owner'.
+          example: "manager"
+      required: 
+        - role
+    

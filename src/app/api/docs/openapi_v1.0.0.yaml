@@ -2454,6 +2454,137 @@ paths:
               example:
                 error: "Failed to reset role permissions"
 
+# ---- /module-access ----
+  /module-access:
+    put:
+      tags:
+        - Authentication
+      summary: Bulk update module access configuration
+      operationId: updateModuleAccess
+      description: >
+        Bulk-upserts module access entries. For each entry provided, updates the existing row if one eixsts for that moduleKey + role combination, or inserts a new row if not.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateModuleAccessRequest'
+            example:
+              entries:
+                - moduleKey: "workshop"
+                  role: "technician"
+                  isEnabled: true
+                - moduleKey: "workshop"
+                  role: "cashier"
+                  isEanbled: false
+      responses:
+        '200':
+          description: >
+            Module access updated. Returns the full current module access list after all entires are processed.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModuleAccessRow'
+              example:
+                - id: "ma_01ABC123"
+                  tenantId: "ten_01XYZ789"
+                  moduleKey: "inventory"
+                  role: "cashier"
+                  isEnabled: true
+                  updatedBy: "usr_01HZ4XY9"
+                  updatedAt: "2026-03-17T10:00:00Z"
+                - id: "ma_02DEF456"
+                  tenantId: "ten_01XYZ789"
+                  moduleKey: "workshop"
+                  role: "technician"
+                  isEnabled: true
+                  updatedBy: "usr_01HZ4XY9"
+                  updatedAt: "2026-03-17T10:30:00Z"
+                - id: "ma_03GHI789"
+                  tenantId: "ten_01XYZ789"
+                  moduleKey: "workshop"
+                  role: "cashier"
+                  isEnabled: false
+                  updatedBy: "usr_01HZ4XY9"
+                  updatedAt: "2026-03-17T10:30:00Z"
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '422':
+          description: Request body failed schema validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to update module access"
+    get:
+      tags:
+        - Authentication
+      summary: Get module access configuration
+      operationId: getModuleAccess
+      description: >
+        Returns all module access rows for the current tenant, ordered by moduleKey then role.
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: >
+            Module access configuration returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModuleAccessRow'
+              example:
+                - id: "ma_01ABC123"
+                  tenantId: "ten_01XYZ789"
+                  moduleKey: "inventory"
+                  role: "cashier"
+                  isEnabled: true
+                  updatedBy: "usr_01HZ4XY9"
+                  updatedAt: "2026-03-17T10:00:00Z"
+                - id: "ma_02DEF456"
+                  tenantId: "ten_01XYZ789"
+                  moduleKey: "workshop"
+                  role: "technician"
+                  isEnabled: true
+                  updatedBy: "usr_01HZ4XY9"
+                  updatedAt: "2026-03-17T10:00:00Z"
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to fetch module access"
+
+
+
+
 
 
 
@@ -3670,4 +3801,86 @@ components:
           example: "manager"
       required: 
         - role
+    
+    ModuleAccessRow:
+      type: object
+      description: >
+        A single module access control row representing whether a specific role has access to a specific module for this tenant.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "ma_01ABC123"
+        tenantId:
+          type: string
+          format: uuid
+          example: "ten_01XYZ789"
+        moduleKey:
+          type: string
+          description: Identifier for the module (e.g., 'inventory', 'workshop').
+          example: "workshop"
+        role:
+          type: string
+          enum: [owner, manager, cashier, technician]
+          example: "technician"
+        isEnabled:
+          type: boolean
+          description: Whether this role has access to this module.
+          example: true
+        updatedBy:
+          type: string
+          format: uuid
+          example: "usr_01HZ4XY9"
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-03-17T10:00:00Z"
+      required:
+        - id
+        - tenant
+        - moduleKey
+        - role
+        - isEnabled
+        - updatedBy
+    
+    ModuleAccessEntry:
+      type: object
+      description: >
+        A single entry in a bulk module access update request.
+      properties:
+        moduleKey:
+          type: string
+          description: Identifier for the module to update.
+          example: "workshop"
+        role:
+          type: string
+          enum: [owner, manager, cashier, technician]
+          example: "technician"
+        isEnabled:
+          type: boolean
+          example: true
+      required:
+        - moduleKey
+        - role
+        - isEnabled
+    
+    UpdateModuleAccessRequest:
+      type: object
+      description: >
+        Request body for bulk-upserting module access entries.
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModuleAccessEntry'
+          example:
+            - moduleKey: "workshop"
+              role: "technician"
+              isEnabled: true
+            - moduleKey: "workshop"
+              role: "cashier"
+              isEnabled: false
+      required:
+        - entries
     

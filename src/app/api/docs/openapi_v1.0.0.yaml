@@ -2582,6 +2582,170 @@ paths:
               example:
                 error: "Failed to fetch module access"
 
+  # ---- /account/sessions ----
+  /account/sessions:
+    get:
+      tags:
+        - Authentication
+      summary: List active sessions
+      operationId: listAccountSessions
+      description: >
+        Returns all active sessions for the currently authenticaed account.
+      security:
+        - accountCookieAuth: []
+      responses:
+        '200':
+          description: Active sessions reutrned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSessionsResponse'
+              example:
+                sessions:
+                  - isCurrent: true
+                  - isCurrent: false
+        '401':
+          description: Not authenticated or session has no accountId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to list sessions"
+    delete:
+      tags:
+        - Authentication
+      summary: Revoke all sessions
+      operationId: revokeAccountSessions
+      description: >
+        Revokes all active sessions for the authenticated account.
+      security:
+        - accountCookieAuth: []
+      parameters:
+        - name: exceptCurrent
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: >
+            If true, keeps the caller's current session alive and revokes all other sessions (sign out other devices). If false or mottied, revokes all sessions including the current one (sign out everywhere).
+          example: true
+      responses:
+        '200':
+          description: Sessions revoked successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteSucessResponse'
+              example:
+                success: true
+        '401':
+          description: Not authenticated or session has no accountId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '422':
+          description: Request body failed schema validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to revoke sessions"
+
+  /account/sessions/{id}:
+    delete:
+      tags:
+        - Authentication
+      summary: Revoke a single session
+      operationId: revokeAccountSession
+      description: >
+        Revoke a single session by ID for the authentiated account.
+      security:
+        - accountCookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The session ID to revoke.
+          example: "ses_01ABC123"
+      responses:
+        '200':
+          description: Session revoked successfully.
+          content: 
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteSuccessResponse'
+              example:
+                success: true
+        '400':
+          description: >
+            Session is already revoked, or is the caller's current active session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                alreadyRevoked:
+                  summary: Session already revoked
+                  value:
+                    error: "Session already revoked"
+                currentSession:
+                  summary: Cannot revoke current session
+                  value:
+                    error: "Cannot revoke your current session"
+        '401':
+          description: Not authenticated or session has no accountId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '404':
+          description: Session not found, or belongs to another account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Session not found"
+        '422':
+          description: Invalid path parameter format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to revoke session"
+
+
 
 
 
@@ -3884,3 +4048,27 @@ components:
       required:
         - entries
     
+    SessionItem:
+      type: object
+      description: >
+        A single active session record for the account. The isCurrent flag identifies the caller's own session.
+      properties:
+        isCurrent:
+          type: boolean
+          description: >
+            True is this session belongs to the caller making this request. Useful for "sign out other devices" UI patterns.
+          example: true
+      required:
+        - isCurrent
+    
+    ListSessionsResponse:
+      type: object
+      description: > 
+        Response containing all active sessions for the account.
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionItem'
+      required:
+        - sessions

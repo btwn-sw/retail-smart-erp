@@ -3,15 +3,15 @@ openapi: 3.0.0
 info:
   version: 1.0.0
   title: Retail Smart ERP API
-  description: OpenAPI specification for the Retail Smart ERP backend API. (placeholder_description)
+  description: OpenAPI specification for the Retail Smart ERP backend API. 
 
 servers:
   - url: https://api.example.com
-    description: Production Server (placeholder)
+    description: Production Server
 
 tags:
-  - name: Authentication
-    description: Authentication and session-related endpoints.
+  - name: Auth & Identity
+    description: Authentication, identity, user management, and access control endpoints.
   
 security:
   - cookieAuth: []
@@ -19,7 +19,7 @@ security:
 
 paths:
   # ---- /auth ----
-  /auth/validate:
+  /api/auth/validate:
     get:
       tags:
         - Authentication
@@ -58,7 +58,7 @@ paths:
                   summary: No active session
                   value:
                     valid: false
-                busienssInactive:
+                businessInactive:
                   summary: Company suspended or deleted
                   value:
                     valid: false
@@ -84,7 +84,7 @@ paths:
                 valid: false
                 reason: "Validation error"
 
-  /auth/heartbeat:
+  /api/auth/heartbeat:
     post:
       tags:
         - Authentication
@@ -156,7 +156,7 @@ paths:
                 valid: false
                 reason: "Heartbeat error"
 
-  /auth/ws-token:
+  /api/auth/ws-token:
     get:
       tags:
         - Authentication
@@ -203,7 +203,7 @@ paths:
                   value:
                     error: "Failed to generate token"
 
-  /auth/forgot-password:
+  /api/auth/forgot-password:
     post:
       tags:
         - Authentication
@@ -221,7 +221,7 @@ paths:
       responses:
         '200':
           description: >
-            Always returned, regardless of whether the email exists or the reset email was sent. This behvior is intentional to prevent email enumeration.
+            Always returned, regardless of whether the email exists or the reset email was sent. This behavior is intentional to prevent email enumeration.
           content:
             application/json:
               schema:
@@ -240,7 +240,7 @@ paths:
               example:
                 error: "Invalid email address"
 
-  /auth/reset-password:
+  /api/auth/reset-password:
     post:
       tags:
         - Authentication
@@ -268,21 +268,21 @@ paths:
               example:
                 success: true
                 message: >
-                  Password has been reset succesuully.
+                  Password has been reset successfully.
                   You can now sign in with your new password.
         '400':
           description: >
             The reset token is invalid, expired, or the account could not be verified. Possible error messages:
-              - `"Invalid or expried reset link. Please request a new one." - JWT failed verification
-              - `"Invalid reset link. Please request a new one."` - wrong tokien purpose or email mismatch
-              - `"ACcount not found. Please request a new reset link."` - account no longer exists
+              - `"Invalid or expired reset link. Please request a new one." - JWT failed verification
+              - `"Invalid reset link. Please request a new one."` - wrong token purpose or email mismatch
+              - `"Account not found. Please request a new reset link."` - account no longer exists
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
                 expiredToken:
-                  summary: Token expired or signaure invalid
+                  summary: Token expired or signature invalid
                   value:
                     error: "Invalid or expired reset link. Please request a new one."
                 invalidToken:
@@ -292,7 +292,7 @@ paths:
                 accountNotFound:
                   summary: Account no longer exists
                   value:
-                    error: "Account not found. Please reqeust a new reset link."
+                    error: "Account not found. Please request a new reset link."
         '429':
           description: >
             Too many reset attempts from this IP address. This limit is database-persisted and survives server restarts.
@@ -312,7 +312,7 @@ paths:
               example:
                 error: "Failed to reset password. Please try again."
 
-  /auth/staff-forgot-password:
+  /api/auth/staff-forgot-password:
     post:
       tags:
         - Authentication
@@ -331,11 +331,11 @@ paths:
       responses:
         '200':
           description: >
-            Always returned regardless of whether the company or staff user exists, the rate limit was hit, or an error occurred. This behavior is intentional to prevent emial enumeration.
+            Always returned regardless of whether the company or staff user exists, the rate limit was hit, or an error occurred. This behavior is intentional to prevent email enumeration.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/SuccessMessageResponse'
               example:
                 success: true
                 message: >
@@ -348,7 +348,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /auth/staff-reset-password:
+  /api/auth/staff-reset-password:
     post:
       tags:
         - Authentication
@@ -370,7 +370,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/SuccessMessageResponse'
               example:
                 success: true
                 message: >
@@ -397,7 +397,7 @@ paths:
                 userNotFound:
                   summary: User deactivated or removed
                   value:
-                    error: "User not found. Please request a enw reset link."
+                    error: "User not found. Please request a new reset link."
         '422':
           description: >
             Request body failed validation. `token` or `newPassword` is missing or does not meet requirements.
@@ -425,20 +425,20 @@ paths:
                 error: "Failed to reset password. Please try again."
 
   # ---- /account-auth ----
-  /account-auth/heartheat:
+  /api/account-auth/heartbeat:
     post:
       tags:
         - Authentication
       summary: Account session keep-alive
       description: >
-        Keep-alive signla for **platform account users**. Validates the account session and updates `lastActiveAt` on the account record.
+        Keep-alive signal for **platform account users**. Validates the account session and updates `lastActiveAt` on the account record.
       operationId: accountHeartbeat
       security:
         - accountCookieAuth: []
       responses:
         '200':
           description: >
-            Session is valid and active. `lastActiveAt` has been updated and the session expiry has been exteneded.
+            Session is valid and active. `lastActiveAt` has been updated and the session expiry has been extended.
           content:
             application/json:
               schema:
@@ -473,7 +473,7 @@ paths:
                 valid: false
                 reason: "Heartbeat error"
 
-  /account-auth/validate:
+  /api/account-auth/validate:
     get:
       tags:
         - Authentication
@@ -509,7 +509,7 @@ paths:
                     valid: false
                     reason: "Session revoked"
                 notFound:
-                  summary: Account no longer eixsts
+                  summary: Account no longer exists
                   value:
                     valid: false
                     reason: "Account not found"
@@ -529,7 +529,7 @@ paths:
                 valid: false
                 reason: "Validation error"
 
-  /account-auth/transfer:
+  /api/account-auth/transfer:
     post:
       tags:
         - Authentication
@@ -619,7 +619,7 @@ paths:
                     error: "Failed to generate transfer token"
 
   # ---- /register ----
-  /register:
+  /api/register:
     post:
       tags:
         - Authentication
@@ -688,7 +688,7 @@ paths:
               example:
                 error: "Registration failed. Please try again."
   
-  /register/check-email:
+  /api/register/check-email:
     post:
       tags:
         - Authentication
@@ -746,7 +746,7 @@ paths:
               example:
                 error: "Failed to check email"
 
-  /register/send-otp:
+  /api/register/send-otp:
     post:
       tags:
         - Authentication
@@ -798,7 +798,7 @@ paths:
               example:
                 error: "Failed to send verification code. Please try again."
   
-  /register/verify-otp:
+  /api/register/verify-otp:
     post:
       tags:
         - Authentication
@@ -862,7 +862,7 @@ paths:
               example: "Verification failed. Please try again."
 
   # ---- /lookup-tenant ----
-  /lookup-tenant:
+  /api/lookup-tenant:
     post:
       tags:
         - Authentication
@@ -997,7 +997,7 @@ paths:
                 error: "Lookup failed"
 
   # ---- /invites ----
-  /invites/{token}:
+  /api/invites/{token}:
     get:
       tags:
         - Authentication
@@ -1071,7 +1071,7 @@ paths:
               example:
                 error: "Internal server error"
 
-  /invites/{token}/accept:
+  /api/invites/{token}/accept:
     post:
       tags:
         - Authentication
@@ -1171,7 +1171,7 @@ paths:
                 error: "Internal server error"
 
   # ---- /users ----
-  /users:
+  /api/users:
     get:
       tags:
         - Authentication
@@ -1324,7 +1324,7 @@ paths:
               example:
                 error: "Failed to create user"
   
-  /users/{id}:
+  /api/users/{id}:
     get:
       tags:
         - Authentication
@@ -1589,7 +1589,7 @@ paths:
               example:
                 error: "Failed to delete user"
 
-  /users/{id}/warehouses:
+  /api/users/{id}/warehouses:
     get:
       tags:
         - Authentication
@@ -1752,7 +1752,7 @@ paths:
               example:
                 error: "Failed to update user warehouse assignments"
 
-  /users/invites:
+  /api/users/invites:
     get:
       tags:
         - Authentication
@@ -1866,7 +1866,7 @@ paths:
               example:
                 error: "Failed to cancel invite"
       
-  /users/invites/{id}/resend:
+  /api/users/invites/{id}/resend:
     post:
       tags:
         - Authentication
@@ -1937,7 +1937,7 @@ paths:
                 error: "Failed to resend invite"
 
   # ---- /custom-roles ----
-  /custom-roles:
+  /api/custom-roles:
     post:
       tags:
         - Authentication
@@ -2074,7 +2074,7 @@ paths:
               example:
                 error: "Failed to fetch custom roles"
 
-  /custom-roles/{id}:
+  /api/custom-roles/{id}:
     put:
       tags:
         - Authentication
@@ -2230,7 +2230,7 @@ paths:
                 error: "Failed to delete custom role"
 
   # ---- /role-permissions ----
-  /role-permissions:
+  /api/role-permissions:
     get:
       tags:
         - Authentication
@@ -2355,7 +2355,7 @@ paths:
               example:
                 error: "Failed to update role permissions"
 
-  /role-permissions/effective:
+  /api/role-permissions/effective:
     get:
       tags:
         - Authentication
@@ -2395,7 +2395,7 @@ paths:
               example:
                 error: "Failed to get permissions"
 
-  /role-permissions/reset:
+  /api/role-permissions/reset:
     post:
       tags:
         - Authentication
@@ -2454,8 +2454,8 @@ paths:
               example:
                 error: "Failed to reset role permissions"
 
-# ---- /module-access ----
-  /module-access:
+  # ---- /module-access ----
+  /api/module-access:
     put:
       tags:
         - Authentication
@@ -2583,7 +2583,7 @@ paths:
                 error: "Failed to fetch module access"
 
   # ---- /account/sessions ----
-  /account/sessions:
+  /api/account/sessions:
     get:
       tags:
         - Authentication
@@ -2670,7 +2670,7 @@ paths:
               example:
                 error: "Failed to revoke sessions"
 
-  /account/sessions/{id}:
+  /api/account/sessions/{id}:
     delete:
       tags:
         - Authentication
@@ -3959,7 +3959,7 @@ components:
       properties:
         role:
           type: string
-          enum: [manager, cashier, techinician]
+          enum: [manager, cashier, technician]
           description: >
             The built-in role to reset. Cannot be 'owner'.
           example: "manager"
@@ -4002,7 +4002,7 @@ components:
           example: "2026-03-17T10:00:00Z"
       required:
         - id
-        - tenant
+        - tenantId
         - moduleKey
         - role
         - isEnabled
@@ -4056,7 +4056,7 @@ components:
         isCurrent:
           type: boolean
           description: >
-            True is this session belongs to the caller making this request. Useful for "sign out other devices" UI patterns.
+            True if this session belongs to the caller making this request. Useful for "sign out other devices" UI patterns.
           example: true
       required:
         - isCurrent

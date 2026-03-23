@@ -22,7 +22,7 @@ paths:
   /api/auth/validate:
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Validate current session
       description: >
         Checks whether the caller's current session is still valid by running real-time database checks - not just reading the session cookie.
@@ -87,7 +87,7 @@ paths:
   /api/auth/heartbeat:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Send session heartbeat
       description: >
         Called periodically by the client while the user is actively using the application. This endpoint serves two purposes:
@@ -151,7 +151,7 @@ paths:
   /api/auth/ws-token:
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Get WebSocket authentication token
       description: >
         Generates a short-lived JWT token (expires in 1hour) for authenticating WebSocket connections. The caller must already have an active session (either tenant or account). No request body or query parameters are required - the server reads the session from the caller's cookies.
@@ -198,7 +198,7 @@ paths:
   /api/auth/forgot-password:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Request password reset email
       description: >
         Sends a password reset email to the provided address if a matching platform account exists. This endpoint applies to **platform account users only** - not to tenant (company) staff users.
@@ -235,7 +235,7 @@ paths:
   /api/auth/reset-password:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Reset account password using reset token
       description: >
         Completes the password reset flow initiated by `POST /auth/forgot-password`. Accepts the JWT from the reset email and a new password, verifies all conditions, then updates the password in the database.
@@ -307,7 +307,7 @@ paths:
   /api/auth/staff-forgot-password:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Request staff password reset email
       description: >
         Sends a password reset email to a **tenant staff user** if a matching active account is found within the specified company.
@@ -343,7 +343,7 @@ paths:
   /api/auth/staff-reset-password:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Reset staff password using reset token
       description: >
         Completes the staff password reset flow initiated by `POST /auth/staff-forgot-password`. Accepts the JWT from the staff reset email and a new password, verifies all conditions within the tenant's isolated database context, then updates the password.
@@ -420,7 +420,7 @@ paths:
   /api/account-auth/heartbeat:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Account session keep-alive
       description: >
         Keep-alive signal for **platform account users**. Validates the account session and updates `lastActiveAt` on the account record.
@@ -468,7 +468,7 @@ paths:
   /api/account-auth/validate:
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Validate account session
       description: >
         Validates the current platform account session against the database. This is the account-level counterpart to `GET /auth/validate`, which serves tenant staff users.
@@ -524,7 +524,7 @@ paths:
   /api/account-auth/transfer:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Generate company transfer token
       description: >
         Generates a short-lived transfer token that allows a platform account owner to enter a company (tenant) staff session **without re-entering credentials**. 
@@ -614,7 +614,7 @@ paths:
   /api/register:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Register a new platform account
       description: >
         Creats a new platform account for an owner or manager. **This endpoint is for platform account owners only.**
@@ -683,7 +683,7 @@ paths:
   /api/register/check-email:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Check email availability for registration
       description: >
         Checks whether an email address is available for a new platform account registration.
@@ -741,7 +741,7 @@ paths:
   /api/register/send-otp:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Send OTP verification code to email
       description: >
         Generates a 5-digit OTP and sends it to the specified email address. 
@@ -793,7 +793,7 @@ paths:
   /api/register/verify-otp:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Verify OTP code and receive verification token
       description: >
         Verifies the 5-digit OTP submitted by the user against the hashed OTP stored in the database. On success, issues a short-lived `verificationToken` JWT that proves email ownership.
@@ -857,7 +857,7 @@ paths:
   /api/lookup-tenant:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Look up companies associated with an email address
       description: >
         Returns a list of active companies (tenants) that the given email address is associated with.
@@ -917,7 +917,7 @@ paths:
                 error: "Lookup failed"
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Look up a company by slug (internal middleware use only)
       description: >
         Validates whether a given company slug exists and is active. 
@@ -992,7 +992,7 @@ paths:
   /api/invites/{token}:
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Get staff invite details
       description: >
         Returns the public details of a staff invite token so the invite acceptance page can display tehm to the recipient.
@@ -1066,7 +1066,7 @@ paths:
   /api/invites/{token}/accept:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Accept a staff invite
       description: >
         Accepts a staff invite and grants the invitee access to one or more companies.
@@ -1166,7 +1166,7 @@ paths:
   /api/users:
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: List tenant staff users
       operationId: listUsers
       description: >
@@ -1234,7 +1234,7 @@ paths:
                 error: "Failed to fetch users"
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Add or invite a staff user
       description: >
         Adds a new staff member to the tenant by email and role. 
@@ -1319,7 +1319,7 @@ paths:
   /api/users/{id}:
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Get a single user
       description: Returns a single staff user by ID.
       operationId: getUserById
@@ -1376,7 +1376,7 @@ paths:
                 error: "Failed to fetch user"
     put:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Update a user
       description: Updates one or more fields of a staff user.
       security:
@@ -1501,7 +1501,7 @@ paths:
                 error: "Failed to update user"
     delete:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Deactivate a user
       description: >
         Soft-deletes a staff user by setting `isActive` to false.
@@ -1584,7 +1584,7 @@ paths:
   /api/users/{id}/warehouses:
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Get user warehouse assignments
       operationId: getUserWarehouses
       description: >
@@ -1661,7 +1661,7 @@ paths:
               example: "Failed to fetch user warehouse assignments"
     put:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Replace user warehouse assignments
       description: >
         Replaces a user's complete set of warehouse assignments with the provided list. This is a full-replace operation, not additive.
@@ -1747,7 +1747,7 @@ paths:
   /api/users/invites:
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       operationId: listUserInvites
       summary: List pending staff invites
       description: >
@@ -1792,7 +1792,7 @@ paths:
                 error: "Failed to fetch invites"
     delete:
       tags:
-        - Authentication
+        - Auth & Identity
       operationId: cancelUserInvite
       summary: Cancel a pending staff invite
       description: >
@@ -1861,7 +1861,7 @@ paths:
   /api/users/invites/{id}/resend:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Resend a staff invite email
       operationId: resendUserInvite
       description: >
@@ -1932,7 +1932,7 @@ paths:
   /api/custom-roles:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Create a custom role
       operationId: CreateCustomRole
       description: >
@@ -2013,7 +2013,7 @@ paths:
                 error: "Failed to create custom role"
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: List custom roles
       operationId: listCustomRole
       description: >
@@ -2069,7 +2069,7 @@ paths:
   /api/custom-roles/{id}:
     put:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Update a custom role
       operationId: updateCustomRole
       description: >
@@ -2157,7 +2157,7 @@ paths:
                 error: "Failed to update custom role"
     delete:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Delete a custom role
       operationId: deleteCustomRole
       description: >
@@ -2225,7 +2225,7 @@ paths:
   /api/role-permissions:
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Get all role permission overrides
       operationId: getRolePermissions
       description: >
@@ -2277,7 +2277,7 @@ paths:
                 error: "Failed to fetch role permissions"
     put:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Update built-in permission overrides
       operationId: updateRolePermissions
       description: >
@@ -2350,7 +2350,7 @@ paths:
   /api/role-permissions/effective:
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Get effective permissions for current user
       operationId: getEffectivePermissions
       description: >
@@ -2390,7 +2390,7 @@ paths:
   /api/role-permissions/reset:
     post:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Reset role permissions to system defaults
       operationId: resetRolePermissions
       description: >
@@ -2450,7 +2450,7 @@ paths:
   /api/module-access:
     put:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Bulk update module access configuration
       operationId: updateModuleAccess
       description: >
@@ -2527,7 +2527,7 @@ paths:
                 error: "Failed to update module access"
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Get module access configuration
       operationId: getModuleAccess
       description: >
@@ -2578,7 +2578,7 @@ paths:
   /api/account/sessions:
     get:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: List active sessions
       operationId: listAccountSessions
       description: >
@@ -2614,7 +2614,7 @@ paths:
                 error: "Failed to list sessions"
     delete:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Revoke all sessions
       operationId: revokeAccountSessions
       description: >
@@ -2665,7 +2665,7 @@ paths:
   /api/account/sessions/{id}:
     delete:
       tags:
-        - Authentication
+        - Auth & Identity
       summary: Revoke a single session
       operationId: revokeAccountSession
       description: >

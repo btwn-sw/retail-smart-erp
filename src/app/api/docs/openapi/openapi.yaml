@@ -91,22 +91,14 @@ paths:
       summary: Send session heartbeat
       description: >
         Called periodically by the client while the user is actively using the application. This endpoint serves two purposes:
-        
-        1. **Validates** that the session has not expired due to inactivity (applies the same 3-hour rule as `GET /auth/validate`).
-
-        2. **Refreshes** the user's `lastActiveAt` timestamp in the database, keeping the sesion alive for another 3 hours.
-
-        3. **Important:** If the sesison has already been inactive for more than 3 hours at the time of the call, the timestamp is **not** updated and the session **cannot** be revived. The user must log in again.
-
-        > **Note:** No request body is required. The server reads identity from the session cookie.
-
-        > **Note:** Platform account users (no `tenantId`) bypass all database checks and always receive `valid: true`.
-
       operationId: sendHeartbeat
       security:
         - cookieAuth: []
       requestBody:
         required: false
+        content:
+          application/json:
+            schema: {}
         description: >
           No request body required.
       responses:

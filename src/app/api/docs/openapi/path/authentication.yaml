@@ -1,9 +1,8 @@
 openapi: 3.0.3
-
 info:
   version: 1.0.0
-  title: Retail Smart ERP API
-  description: OpenAPI specification for the Retail Smart ERP backend API. 
+  title: Retail Smart ERP — Auth & Identity
+  description: Authentication, identity, user management, and access control endpoints.
 
 servers:
   - url: https://api.example.com
@@ -26,8 +25,6 @@ paths:
       summary: Validate current session
       description: >
         Checks whether the caller's current session is still valid by running real-time database checks - not just reading the session cookie.
-
-        This endpoint is intended to be called **periodically in the background** by the client to detect server-side acess changes (e.g., user deactivation, company suspension, or session expiry due to inactivity).
       operationId: validateSession
       security:
         - cookieAuth: []
@@ -44,11 +41,6 @@ paths:
         '401':
           description: >
             Session is invalid. The `reason` field explains why.
-            Possible reasons:
-              - No session cookie present
-              - Business not found or inactive
-              - Access revoked (user deactivated or removed)
-              - Session expired due to inactivity (no activity for 3+ hours)
           content:
             application/json:
               schema:
@@ -90,7 +82,7 @@ paths:
         - Auth & Identity
       summary: Send session heartbeat
       description: >
-        Called periodically by the client while the user is actively using the application. This endpoint serves two purposes:
+        Called periodically by the client while the user is actively using the application. 
       operationId: sendHeartbeat
       security:
         - cookieAuth: []
@@ -240,6 +232,7 @@ paths:
       description: >
         Completes the password reset flow initiated by `POST /auth/forgot-password`. Accepts the JWT from the reset email and a new password, verifies all conditions, then updates the password in the database.
 
+
         **This endpoint applies to platform account users only** (not tenant staff users).
       operationId: resetPassword
       security: []
@@ -303,7 +296,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: "Failed to reset password. Please try again."
-
   /api/auth/staff-forgot-password:
     post:
       tags:
@@ -416,6 +408,7 @@ paths:
               example:
                 error: "Failed to reset password. Please try again."
 
+  
   # ---- /account-auth ----
   /api/account-auth/heartbeat:
     post:
@@ -772,7 +765,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '429':
-          description:
+          description: >
             Too many OTP requests for this email and type within the last hour. Maximum 5 allowed per email per `type` per hour.
           content:
             application/json:
@@ -781,7 +774,7 @@ paths:
               example:
                 error: "Too many verification attempts. Please try again later."
         '500':
-          description:
+          description: >
             Unexpected server error.
           content:
             application/json:
@@ -2745,18 +2738,16 @@ paths:
 
 
 
-
-
 components:
-  securitySchemes: 
+  securitySchemes:
     # ---- auth ----
     cookieAuth:
       type: apiKey
       in: cookie
       name: next-auth.session-token
       description: >
-        Session cookie set by NextAuth.js upon login.
-    
+        Session cookie set by NextAuth.js upon login. Required for all tenant-scoped staff operations.
+
     # ---- account-auth ----
     accountCookieAuth:
       type: apiKey
@@ -2764,7 +2755,7 @@ components:
       name: next-auth.session-token
       description: >
         Session cookie issued by the **account-auth** NextAuth.js instance (`/account-auth/`). Used to authenticate platform account owners and managers.
-  
+
   schemas:
     # ---- Common ----
     ErrorResponse:
@@ -2924,7 +2915,7 @@ components:
       required:
         - transferToken
         - slug
-
+    
     RegisterRequest:
       type: object
       properties:
@@ -3139,8 +3130,8 @@ components:
             - nullable: true
               enum: [null]
           description: >
-            The matched tenant object if found and active, or `null` if no active tenant exists for the given slug.
-
+            The matched tenant object if found and active, or `null` if no active tenant exists for teh given slug.
+    
     InviteTenantAssignment:
       type: object
       description: >
@@ -3369,18 +3360,21 @@ components:
         email:
           type: string
           format: email
-          description: Email of the staff member to add or invite. 
+          description: >
+            Email of the staff member to add or invite. 
         role:
           type: string
           enum: [manager, cashier, technician]
-          description: Role to assign.
+          description: >
+            Role to assign.
           example: "cashier"
         warehouseIds:
           type: array
           items:
             type: string
             format: uuid
-          description: Optional list of warehouse IDs to assign to the new user.
+          description: >
+            Optional list of warehouse IDs to assign to the new user.
           example: ["wh_01ABC123", "wh_02DEF456"]
       required:
         - email
@@ -3403,7 +3397,8 @@ components:
     
     InviteDetail:
       type: object
-      description: Details of a pending staff invite.
+      description: >
+        Details of a pending staff invite.
       properties:
         id:
           type: string
@@ -3452,7 +3447,8 @@ components:
     
     UpdateUserRequest:
       type: object
-      description: Request body for updating a user.
+      description: >
+        Request body for updating a user.
       properties:
         fullName:
           type: string
@@ -3783,7 +3779,7 @@ components:
                 type: boolean
               example:
                 viewReports: true
-                manageInventory: true
+                manageInventory: false
             isActive:
               type: boolean
               example: true
@@ -3824,7 +3820,7 @@ components:
       required:
         - name
         - baseRole
-    
+
     UpdateCustomRoleRequest:
       type: object
       description: Request body to update a custom role.

@@ -620,8 +620,8 @@ paths:
               fullName: "Jane Smith"
               email: "jane@example.com"
               password: "SecureP@ss123"
-              country: "KR"
-              phone: "+82771234567"
+              country: "LK"
+              phone: "+94771234567"
               tosAcceptedAt: "2026-03-12T09:00:00.000Z"
       responses:
         '200':
@@ -1282,7 +1282,7 @@ paths:
             example:
               email: "john@example.com"
               role: "cashier"
-              warehouseIds: ["wh-uuid-1234"]
+              warehouseIds: ["d4e5f6a7-8901-2345-bcde-f01234567890"]
       responses:
         '200':
           description: >
@@ -1311,7 +1311,7 @@ paths:
                   value:
                     mode: "invited"
                     invite:
-                      id: "inv-uuid-1234"
+                      id: "f6a7b8c9-0123-4567-def0-123456789012"
                       email: "john@example.com"
                       role: "cashier"
                       expiresAt: "2026-04-01T09:00:00.000Z"
@@ -1638,24 +1638,24 @@ paths:
                 $ref: '#/components/schemas/UserWarehouseAssignmentsResponse'
               example:
                 assignments:
-                  - id: "uw-uuid-5678"
+                  - id: "d0e1f2a3-4567-8901-1234-567890123456"
                     userId: "u1b2c3d4-5678-90ab-cdef-1234567890ab"
-                    warehouseId: "wh-uuid-1234"
+                    warehouseId: "d4e5f6a7-8901-2345-bcde-f01234567890"
                     isActive: true
                     warehouse:
-                      id: "wh-uuid-1234"
+                      id: "d4e5f6a7-8901-2345-bcde-f01234567890"
                       name: "Main Warehouse"
                       code: "WH-001"
                       isDefault: true
                 posProfileAssignments:
-                  - id: "ppu-uuid-9012"
+                  - id: "f2a3b4c5-6789-0123-3456-789012345678"
                     userId: "u1b2c3d4-5678-90ab-cdef-1234567890ab"
-                    posProfileId: "pp-uuid-3456"
+                    posProfileId: "e1f2a3b4-5678-9012-2345-678901234567"
                     posProfile:
-                      id: "pp-uuid-3456"
+                      id: "e1f2a3b4-5678-9012-2345-678901234567"
                       name: "Counter 1"
                       warehouse:
-                        id: "wh-uuid-1234"
+                        id: "d4e5f6a7-8901-2345-bcde-f01234567890"
                         name: "Main Warehouse"
                         code: "WH-001"
                         isDefault: true
@@ -1704,8 +1704,8 @@ paths:
                 summary: Assign two warehouses
                 value:
                   warehouseIds:
-                    - "wh-uuid-1234"
-                    - "wh-uuid-5678"
+                    - "d4e5f6a7-8901-2345-bcde-f01234567890"
+                    - "d4e5f6a7-8901-2345-bcde-f01234567891"
               removeAll:
                 summary: Remove all warehouse assignments
                 value:
@@ -1720,12 +1720,12 @@ paths:
                 $ref: '#/components/schemas/UpdateUserWarehousesResponse'
               example:
                 assignments:
-                  - id: "uw-uuid-5678"
+                  - id: "d0e1f2a3-4567-8901-1234-567890123456"
                     userId: "u1b2c3d4-5678-90ab-cdef-1234567890ab"
-                    warehouseId: "wh-uuid-1234"
+                    warehouseId: "d4e5f6a7-8901-2345-bcde-f01234567890"
                     isActive: true
                     warehouse:
-                      id: "wh-uuid-1234"
+                      id: "d4e5f6a7-8901-2345-bcde-f01234567890"
                       name: "Main Warehouse"
                       code: "WH-001"
                       isDefault: true
@@ -1801,13 +1801,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/PendingInviteItem'
               example:
-                - id: "inv-uuid-1234"
+                - id: "f6a7b8c9-0123-4567-def0-123456789012"
                   email: "john@example.com"
                   role: "cashier"
                   expiresAt: "2026-04-01T09:00:00.000Z"
                   createdAt: "2026-03-25T09:00:00.000Z"
                   status: "pending"
-                - id: "inv-uuid-5678"
+                - id: "f6a7b8c9-0123-4567-def0-123456789013"
                   email: "jane@example.com"
                   role: "manager"
                   expiresAt: "2026-03-20T09:00:00.000Z"
@@ -1855,7 +1855,7 @@ paths:
             type: string
             format: uuid
           description: The UUID of the invite to cancel. (`staff_invites.id`)
-          example: "inv-uuid-1234"
+          example: "f6a7b8c9-0123-4567-def0-123456789012"
       responses:
         '200':
           description: Invite successfully cancelled.
@@ -1921,7 +1921,7 @@ paths:
         - Auth & Identity
       summary: Resend a staff invite email
       description: >
-        Extends the invite's expiry by 7 days from now and resends the invitation email to the original recipient..
+        Extends the invite's expiry by 7 days from now and resends the invitation email to the original recipient.
       operationId: resendInvite
       security:
         - cookieAuth: []
@@ -2006,14 +2006,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/CustomRoleItem'
               example:
-                id: "cr-uuid-1234"
-                tenantId: "t-uuid-5678"
+                id: "e5f6a7b8-9012-3456-cdef-012345678901"
+                tenantId: "b3d2e1f0-1234-5678-abcd-ef0123456789"
                 name: "Senior Cashier"
                 slug: "senior_cashier"
                 baseRole: "cashier"
                 description: "Cashier with additional inventory view access"
                 color: "#3b82f6"
-                createdBy: "u-uuid-9012"
+                createdBy: "f2a3b4c5-6789-0123-3456-789012345678"
                 createdAt: "2026-03-25T09:00:00.000Z"
                 updatedAt: "2026-03-25T09:00:00.000Z"
                 permissions: {}
@@ -2097,14 +2097,14 @@ paths:
                 items:
                   $ref: '#/components/schemas/CustomRoleItem'
               example:
-                - id: "cr-uuid-1234"
-                  tenantId: "t-uuid-5678"
+                - id: "e5f6a7b8-9012-3456-cdef-012345678901"
+                  tenantId: "b3d2e1f0-1234-5678-abcd-ef0123456789"
                   name: "Senior Cashier"
                   slug: "senior_cashier"
                   baseRole: "cashier"
                   description: "Cashier with additional inventory view access"
                   color: "#3b82f6"
-                  createdBy: "u-uuid-9012"
+                  createdBy: "f2a3b4c5-6789-0123-3456-789012345678"
                   createdAt: "2026-03-25T09:00:00.000Z"
                   updatedAt: "2026-03-25T09:00:00.000Z"
                   permissions:
@@ -2162,15 +2162,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/CustomRoleItem'
               example:
-                id: "cr-uuid-1234"
-                tenantId: "t-uuid-5678"
+                id: "e5f6a7b8-9012-3456-cdef-012345678901"
+                tenantId: "b3d2e1f0-1234-5678-abcd-ef0123456789"
                 name: "Front Counter Staff"
                 slug: "front_counter_staff"
                 baseRole: "cashier"
                 description: "Counter staff with limited inventory access"
                 color: "#10b981"
                 isActive: true
-                createdBy: "u-uuid-9012"
+                createdBy: "f2a3b4c5-6789-0123-3456-789012345678"
                 createdAt: "2026-03-25T09:00:00.000Z"
                 updatedAt: "2026-03-25T10:00:00.000Z"
                 permissions: {}
@@ -2295,14 +2295,14 @@ paths:
                     voidSales: false
                     viewReports: true
                 customRoles:
-                  - id: "cr-uuid-1234"
-                    tenantId: "t-uuid-5678"
+                  - id: "e5f6a7b8-9012-3456-cdef-012345678901"
+                    tenantId: "b3d2e1f0-1234-5678-abcd-ef0123456789"
                     name: "Senior Cashier"
                     slug: "senior_cashier"
                     baseRole: "cashier"
                     description: null
                     color: "#3b82f6"
-                    createdBy: "u-uuid-9012"
+                    createdBy: "f2a3b4c5-6789-0123-3456-789012345678"
                     createdAt: "2026-03-25T09:00:00.000Z"
                     updatedAt: "2026-03-25T09:00:00.000Z"
                     permissions:
@@ -2562,20 +2562,20 @@ paths:
                 items:
                   $ref: '#/components/schemas/ModuleAccessRecord'
               example:
-                - id: "ma-uuid-1234"
-                  tenantId: "t-uuid-5678"
+                - id: "c9d0e1f2-3456-7890-0123-456789012345"
+                  tenantId: "b3d2e1f0-1234-5678-abcd-ef0123456789"
                   moduleKey: "inventory"
                   role: "cashier"
                   isEnabled: false
-                  updatedBy: "u-uuid-9012"
+                  updatedBy: "f2a3b4c5-6789-0123-3456-789012345678"
                   updatedAt: "2026-03-25T10:00:00.000Z"
                   createdAt: "2026-03-01T00:00:00.000Z"
-                - id: "ma-uuid-5678"
-                  tenantId: "t-uuid-5678"
+                - id: "c9d0e1f2-3456-7890-0123-456789012346"
+                  tenantId: "b3d2e1f0-1234-5678-abcd-ef0123456789"
                   moduleKey: "pos"
                   role: "cashier"
                   isEnabled: true
-                  updatedBy: "u-uuid-9012"
+                  updatedBy: "f2a3b4c5-6789-0123-3456-789012345678"
                   updatedAt: "2026-03-25T10:00:00.000Z"
                   createdAt: "2026-03-01T00:00:00.000Z"
         '400':
@@ -2625,20 +2625,20 @@ paths:
                 items:
                   $ref: '#/components/schemas/ModuleAccessRecord'
               example:
-                - id: "ma-uuid-1234"
-                  tenantId: "t-uuid-5678"
+                - id: "c9d0e1f2-3456-7890-0123-456789012345"
+                  tenantId: "b3d2e1f0-1234-5678-abcd-ef0123456789"
                   moduleKey: "inventory"
                   role: "cashier"
                   isEnabled: false
-                  updatedBy: "u-uuid-9012"
+                  updatedBy: "f2a3b4c5-6789-0123-3456-789012345678"
                   updatedAt: "2026-03-25T09:00:00.000Z"
                   createdAt: "2026-03-01T00:00:00.000Z"
-                - id: "ma-uuid-5678"
-                  tenantId: "t-uuid-5678"
+                - id: "c9d0e1f2-3456-7890-0123-456789012346"
+                  tenantId: "b3d2e1f0-1234-5678-abcd-ef0123456789"
                   moduleKey: "pos"
                   role: "cashier"
                   isEnabled: true
-                  updatedBy: "u-uuid-9012"
+                  updatedBy: "f2a3b4c5-6789-0123-3456-789012345678"
                   updatedAt: "2026-03-25T09:00:00.000Z"
                   createdAt: "2026-03-01T00:00:00.000Z"
         '401':
@@ -2680,7 +2680,7 @@ paths:
                 $ref: '#/components/schemas/ActiveSessionsResponse'
               example:
                 sessions:
-                  - id: "sess-uuid-1234"
+                  - id: "a7b8c9d0-1234-5678-ef01-234567890123"
                     scope: "account"
                     tenantSlug: null
                     ipAddress: "203.0.113.42"
@@ -2689,7 +2689,7 @@ paths:
                     createdAt: "2026-03-25T09:00:00.000Z"
                     expiresAt: "2026-03-26T09:00:00.000Z"
                     isCurrent: true
-                  - id: "sess-uuid-5678"
+                  - id: "a7b8c9d0-1234-5678-ef01-234567890124"
                     scope: "company"
                     tenantSlug: "my-company"
                     ipAddress: "203.0.113.55"
@@ -2882,7 +2882,7 @@ components:
       schema:
         type: string
       description: Invite token (URL-safe random string).
-      example: "abc123def456..."
+      example: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"
 
   schemas:
     # ---- Enums ----
@@ -3202,12 +3202,12 @@ components:
           maxLength: 2
           description: >
             ISO 3166-1 alpha-2 country code. Must be one of the 82 countries supported by this application — not all ISO codes are accepted. Determines the default currency stored in `accounts.currency`.
-          example: "KR"
+          example: "LK"
         phone:
           type: string
           description: >
             Mobile phone number. Normalized to digits-only with optional leading `+` before storage. Must contain 7-15 digits. Must be unique across all accounts (`accounts.phone` UNIQUE constraint).
-          example: "+82771234567"
+          example: "+94771234567"
         verficationToken:
           type: string
           description: >
@@ -3610,14 +3610,14 @@ components:
         warehouseId:
           type: string
           format: uuid
-          example: "wh-uuid-1234"
+          example: "d4e5f6a7-8901-2345-bcde-f01234567890"
         warehouse:
           type: object
           properties:
             id:
               type: string
               format: uuid
-              example: "wh-uuid-1234"
+              example: "d4e5f6a7-8901-2345-bcde-f01234567890"
             name:
               type: string
               example: "Main Warehouse"
@@ -3711,7 +3711,7 @@ components:
             format: uuid
           description: >
             Optional list of warehouse UUIDs to assign the new user to. Only applies when the user is added immediately (mode `"added"`). Ignored in invite flow.
-          example: ["wh-uuid-1234"]
+          example: ["d4e5f6a7-8901-2345-bcde-f01234567890"]
       required:
         - email
         - role
@@ -3746,7 +3746,7 @@ components:
             id:
               type: string
               format: uuid
-              example: "inv-uuid-1234"
+              example: "f6a7b8c9-0123-4567-def0-123456789012"
             email:
               type: string
               format: email
@@ -3840,7 +3840,7 @@ components:
         id:
           type: string
           format: uuid
-          example: "wh-uuid-1234"
+          example: "d4e5f6a7-8901-2345-bcde-f01234567890"
         name:
           type: string
           example: "Main Warehouse"
@@ -3864,7 +3864,7 @@ components:
         id:
           type: string
           format: uuid
-          example: "uw-uuid-5678"
+          example: "d0e1f2a3-4567-8901-1234-567890123456"
         userId:
           type: string
           format: uuid
@@ -3872,7 +3872,7 @@ components:
         warehouseId:
           type: string
           format: uuid
-          example: "wh-uuid-1234"
+          example: "d4e5f6a7-8901-2345-bcde-f01234567890"
         isActive:
           type: boolean
           example: true
@@ -3893,7 +3893,7 @@ components:
         id:
           type: string
           format: uuid
-          example: "ppu-uuid-9012"
+          example: "f2a3b4c5-6789-0123-3456-789012345678"
         userId:
           type: string
           format: uuid
@@ -3901,14 +3901,14 @@ components:
         posProfileId:
           type: string
           format: uuid
-          example: "pp-uuid-3456"
+          example: "e1f2a3b4-5678-9012-2345-678901234567"
         posProfile:
           type: object
           properties:
             id:
               type: string
               format: uuid
-              example: "pp-uuid-3456"
+              example: "e1f2a3b4-5678-9012-2345-678901234567"
             name:
               type: string
               example: "Counter 1"
@@ -3958,8 +3958,8 @@ components:
           description: >
             The complete list of warehouse UUIDs to assign to this user. All provided IDs must exist as warehouses in the current tenant.
           example:
-            - "wh-uuid-1234"
-            - "wh-uuid-5678"
+            - "d4e5f6a7-8901-2345-bcde-f01234567890"
+            - "d4e5f6a7-8901-2345-bcde-f01234567891"
       required:
         - warehouseIds
     
@@ -3996,7 +3996,7 @@ components:
           type: string
           format: uuid
           description: Invite UUID. (`staff_invites.id`)
-          example: "inv-uuid-1234"
+          example: "f6a7b8c9-0123-4567-def0-123456789012"
         email:
           type: string
           format: email
@@ -4071,12 +4071,12 @@ components:
           type: string
           format: uuid
           description: Custom role UUID. (`custom_roles.id`)
-          example: "cr-uuid-1234"
+          example: "e5f6a7b8-9012-3456-cdef-012345678901"
         tenantId:
           type: string
           format: uuid
           description: The tenant this role belongs to.
-          example: "t-uuid-5678"
+          example: "b3d2e1f0-1234-5678-abcd-ef0123456789"
         name:
           type: string
           description: Human-readable role name. (`custom_roles.name`)
@@ -4108,7 +4108,7 @@ components:
           format: uuid
           nullable: true
           description: UUID of the user who created this role.
-          example: "u-uuid-9012"
+          example: "f2a3b4c5-6789-0123-3456-789012345678"
         createdAt:
           type: string
           format: date-time
@@ -4356,12 +4356,12 @@ components:
           type: string
           format: uuid
           description: Record UUID. (`module_access.id`)
-          example: "ma-uuid-1234"
+          example: "c9d0e1f2-3456-7890-0123-456789012345"
         tenantId:
           type: string
           format: uuid
           description: The tenant this record belongs to.
-          example: "t-uuid-5678"
+          example: "b3d2e1f0-1234-5678-abcd-ef0123456789"
         moduleKey:
           type: string
           description: >
@@ -4383,7 +4383,7 @@ components:
           format: uuid
           nullable: true
           description: UUID of the user who last updated this record.
-          example: "u-uuid-9012"
+          example: "f2a3b4c5-6789-0123-3456-789012345678"
         updatedAt:
           type: string
           format: date-time
@@ -4455,7 +4455,7 @@ components:
           type: string
           format: uuid
           description: Session UUID. (`account_sessions.id`)
-          example: "sess-uuid-1234"
+          example: "a7b8c9d0-1234-5678-ef01-234567890123"
         scope:
           type: string
           enum:

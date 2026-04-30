@@ -103,7 +103,7 @@ paths:
               example:
                 id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
                 email: "owner@example.com"
-                fullName: "Johe Doe"
+                fullName: "John Doe"
                 phone: "+9477712345678"
                 country: "LK"
                 currency: "LKR"
@@ -1388,8 +1388,8 @@ paths:
             If `true`, returns only unread notifications.
           schema:
             type: string
-            enum: ["true", "false"]
-            example: "true"
+            enum: [true, false]
+            example: true
       responses:
         '200':
           description: Notifications retrieved successfully.
@@ -1591,7 +1591,7 @@ paths:
           schema:
             type: string
             enum: ["true"]
-            example: "true"
+            example: true
       responses:
         '200':
           description: Notification(s) deleted successfully.
@@ -2711,7 +2711,7 @@ paths:
         - Account & Company
       summary: List conversation
       description: >
-        Returns a paginzted list of conversations for the authenticated account, ordered by last message date descending.
+        Returns a paginated list of conversations for the authenticated account, ordered by last message date descending.
       operationId: listAccountConversation
       security:
         - accountCookieAuth: []
@@ -2779,7 +2779,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                error: "Invalid query paramters"
+                error: "Invalid query parameters"
                 details:
                   - field: "page"
                     message: "Expected integer, received string"
@@ -2880,6 +2880,1166 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: "Internal server error"
+
+  /api/account/messages/{conversationId}:
+    get:
+      tags:
+        - Account & Company
+      summary: Get conversation with messages
+      description: >
+        Returns the full conversation and all its messages, ordered oldest first.
+      operationId: getConversationMessages
+      security:
+        - accountCookieAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          description: Conversation ID.
+          schema:
+            type: string
+            format: uuid
+            example: "k2l3m4n5-o6p7-8901-q234-567890123456"
+      responses:
+        '200':
+          description: Conversation and messages retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationDetailResponse'
+              example:
+                conversation:
+                  id: "k2l3m4n5-o6p7-8901-q234-567890123456"
+                  accountId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  subject: "Billing question for March"
+                  status: "open"
+                  priority: "normal"
+                  category: "billing"
+                  lastMessageAt: "2026-03-29T10:00:00.000Z"
+                  lastMessagePreview: "I have a question about my March invoice..."
+                  unreadByAccount: false
+                  unreadByAdmin: true
+                  closedAt: null
+                  closedBy: null
+                  createdAt: "2026-03-29T10:00:00.000Z"
+                  updatedAt: "2026-03-29T10:00:00.000Z"
+                messages:
+                  - id: "l3m4n5o6-p7q8-9012-r345-678901234567"
+                    conversationId: "k2l3m4n5-o6p7-8901-q234-567890123456"
+                    senderType: "account"
+                    senderId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                    senderName: "John Smith"
+                    content: "I have a question about my March invoice..."
+                    metadata: {}
+                    isSystemMessage: false
+                    readAt: null
+                    createdAt: "2026-03-29T10:00:00.000Z"
+        '400':
+          description: Path parameter is not a valid UUID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid path parameters"
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '404':
+          description: Conversation not found or belongs to another account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Conversation not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+    post:
+      tags:
+        - Account & Company
+      summary: Send a reply
+      description: >
+        Sends a reply message to an existing conversation.
+        Cannot reply to a conversation with status `closed`.
+      operationId: sendConversationReply
+      security:
+        - accountCookieAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          description: Conversation ID to reply to.
+          schema:
+            type: string
+            format: uuid
+            example: "k2l3m4n5-o6p7-8901-q234-567890123456"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendReplyRequest'
+            example:
+              content: "Thank you for getting back to me. The issue is now resolved."
+      responses:
+        '201':
+          description: Reply sent successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageItem'
+              example:
+                id: "m4n5o6p7-q8r9-0123-s456-789012345678"
+                conversationId: "k2l3m4n5-o6p7-8901-q234-567890123456"
+                senderType: "account"
+                senderId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                senderName: "John Smith"
+                content: "Thank you for getting back to me. The issue is now resolved."
+                metadata: {}
+                isSystemMessage: false
+                readAt: null
+                createdAt: "2026-03-29T11:00:00.000Z"
+        '400':
+          description: >
+            Path parameter invalid, validation failed, or conversation is closed.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                conversationClosed:
+                  value:
+                    error: "Conversation is closed"
+                validationFailed:
+                  value:
+                    error: "Validation failed"
+                    details:
+                      - field: "content"
+                        message: "Content is required"
+                invalidParam:
+                  value:
+                    error: "Invalid path parameters"
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '404':
+          description: Conversation not found or belongs to another account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Conversation not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+    put:
+      tags:
+        - Account & Company
+      summary: Close or reopen a conversation
+      description: >
+        Changes the status of a conversation.
+      operationId: updateConversationStatus
+      security:
+        - accountCookieAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          description: Conversation ID to close or reopen.
+          schema:
+            type: string
+            format: uuid
+            example: "k2l3m4n5-o6p7-8901-q234-567890123456"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationActionRequest'
+            examples:
+              close:
+                summary: Close the conversation
+                value:
+                  action: "close"
+              reopen:
+                summary: Reopen the conversation
+                value:
+                  action: "reopen"
+      responses:
+        '200':
+          description: Conversation status updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+        '400':
+          description: Path parameter invalid or validation failed.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                validationFailed:
+                  value:
+                    error: "Validation failed"
+                    details:
+                      - field: "action"
+                        message: "Invalid enum value"
+                invalidParam:
+                  value:
+                    error: "Invalid path parameters"
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '404':
+          description: Conversation not found or belongs to another account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Conversation not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+
+  /api/account/messages/recent:
+    get:
+      tags:
+        - Account & Company
+      summary: Get recent conversations
+      description: >
+        Returns up to 5 most recent conversations for the authenticated account, ordered by last message date descending.
+      operationId: getRecentConversations
+      security:
+        - accountCookieAuth: []
+      responses:
+        '200':
+          description: Recent conversations retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecentConversationsResponse'
+              example:
+                conversations:
+                  - id: "k2l3m4n5-o6p7-8901-q234-567890123456"
+                    subject: "Billing question for March"
+                    status: "open"
+                    lastMessageAt: "2026-03-29T10:00:00.000Z"
+                    lastMessagePreview: "I have a question about my March invoice..."
+                    unreadByAccount: false
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+
+  /api/account/messages/unread:
+    get:
+      tags:
+        - Account & Company
+      summary: Get unread conversation count
+      description: >
+        Returns the number of open conversations with unread messages for the authenticated account.
+      operationId: getUnreadConversationCount
+      security:
+        - accountCookieAuth: []
+      responses:
+        '200':
+          description: >
+            Unread count returned. 
+            Also returned silently on server error (count will be 0).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCountResponse'
+              example:
+                unreadCount: 0
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+  
+  /api/account/activity:
+    get:
+      tags:
+        - Account & Company
+      summary: Get account activity log
+      description: >
+        Returns a merged, paginated activity feed across all of the authenticated account's companies and account-level events.
+        Activity is collected from three sources:
+          1. Company activity logs (`activityLogs`)
+          2. Payment deposits (`paymentDeposits`)
+          3. Wallet transactions (`creditTransactions`)
+      operationId: getAccountActivity
+      security:
+        - accountCookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of activities to return. Default 50, max 100.
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+            example: 50
+        - name: offset
+          in: query
+          required: false
+          description: Number of items to skip for pagination. Default 0.
+          schema:
+            type: integer
+            default: 0
+            example: 0
+      responses:
+        '200':
+          description: Activity log retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityListResponse'
+              example:
+                activities:
+                  - id: "g8h9i0j1-k2l3-4567-m890-123456789012"
+                    type: "payment"
+                    action: "submitted"
+                    description: "Subscription payment of LKR 2900.00 - pending"
+                    companyName: null
+                    createdAt: "2026-03-29T10:00:00.000Z"
+                    metadata:
+                      amount: "2900.00"
+                      currency: "LKR"
+                      status: "pending"
+                  - id: "h9i0j1k2-l3m4-5678-n901-234567890123"
+                    type: "wallet"
+                    action: "credit"
+                    description: "Plan downgrade credit: Professional → Starter (prorated)"
+                    companyName: null
+                    createdAt: "2026-03-28T10:00:00.000Z"
+                    metadata:
+                      amount: "1403.23"
+                      currency: "LKR"
+                      balanceAfter: "1403.23"
+                  - id: "i0j1k2l3-m4n5-6789-o012-345678901234"
+                    type: "sale"
+                    action: "create"
+                    description: "create sale INV-2026-001"
+                    companyName: "Sunrise Retail"
+                    createdAt: "2026-03-27T10:00:00.000Z"
+                    metadata: {}
+                total: 3
+                limit: 50
+                offset: 0
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to fetch activity"
+    
+  /api/account/avatar:
+    post:
+      tags:
+        - Account & Company
+      summary: Upload account avatar
+      description: >
+        Uploads a new avatar image for the authenticated account.
+      operationId: uploadAccountAvatar
+      security:
+        - accountCookieAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: 
+                - avatar
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: >
+                    Avatar image file.
+                    Allowed types: PNG, JPEG, WebP.
+                    Max size: 2MB.
+      responses:
+        '200':
+          description: Avatar uploaded successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvatarUploadResponse'
+              example:
+                avatarUrl: "https://cdn.retailsmarterp.com/avatars/a1b2c3d4e5f6.png"
+        '400':
+          description: >
+            No file provided, invalid file type, or file too large.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noFile:
+                  value:
+                    error: "No file provided"
+                invalidType:
+                  value:
+                    error: "Invalid file type. Allowed: PNG, JPEG, WebP"
+                tooLarge:
+                  value:
+                    error: "File too large. Maximum 2MB"
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error or R2 upload failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to upload avatar"
+    delete:
+      tags:
+        - Account & Company
+      summary: Remove account avatar
+      description: >
+        Removes the avatar for the authenticated account.
+        Deletes the file from R2 and sets `avatarUrl` to null in the database.
+      operationId: deleteAccountAvatar
+      security:
+        - accountCookieAuth: []
+      responses:
+        '200':
+          description: Avatar removed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to remove avatar"
+
+  /api/account/bank-details:
+    get:
+      tags:
+        - Account & Company
+      summary: Get bank details
+      description: >
+        Returns the system-level bank details configured by an administrator.
+      operationId: getBankDetails
+      security:
+        - accountCookieAuth: []
+      responses:
+        '200':
+          description: Bank details retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankDetailsResponse'
+              examples:
+                configured:
+                  summary: Bank details configured
+                  value:
+                    value:
+                      bankName: "Bank of Ceylon"
+                      accountNumber: "1234567890"
+                      accountName: "Retail Smart POS Pvt Ltd"
+                      branch: "Colombo"
+                notConfigured:
+                  summary: Not yet configured
+                  value:
+                    value: null
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to fetch bank details"
+
+  /api/account/billing:
+    get:
+      tags:
+        - Account & Company
+      summary: Get billing summary
+      description: >
+        Returns a complete billing overview for the authenticated account, including:
+          - Billing summary with volume discount applied
+          - Per-company line items (active and trial subscriptions)
+          - Volume discount tier table (from system settings)
+          - Up to 10 most recent invoices
+      operationId: getAccountBilling
+      security:
+        - accountCookieAuth: []
+      responses:
+        '200':
+          description: Billing summary retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingResponse'
+              example:
+                summary:
+                  companyCount: 2
+                  discountPercent: 15
+                  subtotal: 5800
+                  discount: 870
+                  total: 4930
+                  currency: "LKR"
+                lineItems:
+                  - tenantId: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                    tenantName: "Sunrise Retail"
+                    tierName: "Professional"
+                    priceMonthly: 2900
+                    tierCurrency: "LKR"
+                    status: "active"
+                    trialEndsAt: null
+                    grandfathered: false
+                    currentTierPrice: 2900
+                  - tenantId: "c3d4e5f6-a7b8-9012-cdef-234567890123"
+                    tenantName: "North Branch"
+                    tierName: "Starter"
+                    priceMonthly: 2900
+                    tierCurrency: "LKR"
+                    status: "trial"
+                    trialEndsAt: "2026-04-10T00:00:00.000Z"
+                    grandfathered: false
+                    currentTierPrice: 2900
+                userCurrency: "LKR"
+                discountTiers:
+                  - minCompanies: 2
+                    discount: 15
+                  - minCompanies: 6
+                    discount: 25
+                  - minCompanies: 11
+                    discount: 30
+                recentInvoices:
+                  - id: "o6p7q8r9-s0t1-2345-u678-901234567890"
+                    invoiceNumber: "INV-2026-001"
+                    periodStart: "2026-03-01"
+                    periodEnd: "2026-03-31"
+                    subtotal: "5800.00"
+                    volumeDiscount: "870.00"
+                    total: "4930.00"
+                    status: "paid"
+                    paidAt: "2026-03-05T10:00:00.000Z"
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+
+  /api/account/password:
+    put:
+      tags:
+        - Account & Company
+      summary: Change password
+      description: >
+        Changes the password for the authenticated account.
+      operationId: changeAccountPassword
+      security:
+        - accountCookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+            example:
+              currentPassword: "OldPassword123!"
+              newPassword: "NewSecurePassword456!"
+      responses:
+        '200':
+          description: Password changed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangePasswordResponse'
+              example:
+                success: true
+                message: "Password updated successfully"
+        '400':
+          description: Validation failed or current password is incorrect.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ValidationErrorResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                wrongPassword:
+                  value:
+                    error: "Current password is incorrect"
+                validationFailed:
+                  value:
+                    error: "Validation failed"
+                    details:
+                      - field: "currentPassword"
+                        message: "Current password is required"
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '404':
+          description: >
+            Account not found despite valid session (rare — DB inconsistency).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Account not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+
+  /api/account/pricing-tiers:
+    get:
+      tags:
+        - Account & Company
+      summary: Get active pricing tiers
+      description: >
+        Returns all active pricing tiers ordered by sort order ascending.
+        Returns a direct array — no wrapper object.
+      operationId: listActivePricingTiers
+      security:
+        - accountCookieAuth: []
+      responses:
+        '200':
+          description: Active pricing tiers retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActivePricingTier'
+              example:
+                - id: "d4e5f6a7-b8c9-0123-def0-345678901234"
+                  name: "professional"
+                  displayName: "Professional"
+                  priceMonthly: 2900
+                  priceYearly: 29000
+                  currency: "LKR"
+                  maxUsers: null
+                  maxSalesMonthly: null
+                  maxDatabaseBytes: null
+                  maxFileStorageBytes: null
+                  features: {}
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+
+  /api/account/team:
+    get:
+      tags:
+        - Account & Company
+      summary: Get team members
+      description: >
+        Returns all active team members across all companies owned by the authenticated account.
+        Results are grouped by account — a member who belongs to multiple owned companies appears once with all their sites merged into the `sites` array.
+      operationId: getTeamMembers
+      security:
+        - accountCookieAuth: []
+      responses:
+        '200':
+          description: Team members retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamResponse'
+              examples:
+                withMembers:
+                  summary: Account with owned companies and member
+                  value:
+                    members:
+                      - id: "p7q8r9s0-t1u2-3456-v789-012345678901"
+                        accountId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                        fullName: "Jane Doe"
+                        email: "jane@example.com"
+                        isOwner: false
+                        sites:
+                          - id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                            name: "Sunrise Retail"
+                            role: "manager"
+                          - id: "c3d4e5f6-a7b8-9012-cdef-234567890123"
+                            name: "North Branch"
+                            role: "cashier"
+                        joinedAt: "2026-01-15T10:00:00.000Z"
+                noOwnership:
+                  summary: Account owns no companies
+                  value:
+                    member: []
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to fetch team"
+
+  /api/account/usage:
+    get:
+      tags:
+        - Account & Company
+      summary: Get usage summary
+      description: >
+        Returns usage statistics for all companies where the authenticated account has an active membership.
+      operationId: getAccountUsage
+      security:
+        - accountCookieAuth: []
+      responses:
+        '200':
+          description: Usage summary retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageResponse'
+              examples:
+                withData:
+                  summary: Account with active companies
+                  value:
+                    companies:
+                      - id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                        name: "Sunrise Retail"
+                        slug: "sunrise-retail"
+                        businessType: "retail"
+                        status: "active"
+                        role: "manager"
+                        isOwner: true
+                        subscription:
+                          status: "active"
+                          tierName: "Professional"
+                          trialEndsAt: null
+                          currentPeriodEnd: "2026-04-01T00:00:00.000Z"
+                        usage:
+                          users: 5
+                          customers: 120
+                          items: 300
+                          sales: 450
+                          workOrders: 80
+                          totalRecords: 955
+                          storageBytes: 10485760
+                          fileStorageBytes: 52428800
+                          updatedAt: "2026-03-29T08:00:00.000Z"
+                        limits:
+                          maxUsers: null
+                          maxSalesMonthly: null
+                    totals:
+                      companies: 1
+                      records: 955
+                      storageBytes: 10485760
+                      fileStorageBytes: 52428800
+                noMemberships:
+                  summary: No active memberships
+                  value:
+                    companies: []
+                    totals:
+                      companies: 0
+                      records: 0
+                      storageBytes: 0
+                      fileStorageBytes: 0
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+
+  /api/account/usage/{tenantId}:
+    get:
+      tags:
+        - Account & Company
+      summary: Get tenant storage usage summary
+      description: >
+        Returns storage usage summary for a specific tenant.
+        Only the `primaryOwnerId` of the tenant can access this endpoint.
+      operationId:
+        getTenantUsageSummary
+      security:
+        - accountCookieAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          description: Tenant ID to get usage for.
+          schema:
+            type: string
+            format: uuid
+            example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+      responses:
+        '200':
+          description: Tenant usage retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantUsageDetailResponse'
+              example:
+                tenant:
+                  id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                  name: "Sunrise Retail"
+                  slug: "sunrise-retail"
+                  businessType: "retail"
+                usage:
+                  databaseBytes: 10485760
+                  fileStorageBytes: 52428800
+                  updatedAt: "2026-03-29T08:00:00.000Z"
+                totals:
+                  storageBytes: 10485760
+                  fileStorageBytes: 52428800
+                subscription:
+                  status: "active"
+                  currentPeriodStart: "2026-03-01T00:00:00.000Z"
+                  currentPeriodEnd: "2026-04-01T00:00:00.000Z"
+                  trialEndsAt: null
+                tier:
+                  id: "d4e5f6a7-b8c9-0123-def0-345678901234"
+                  name: "professional"
+                  displayName: "Professional"
+                limits:
+                  maxStorageBytes: null
+                  maxFileStorageBytes: null
+                canManage: true
+        '400':
+          description: Path parameter is not a valid UUID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid path parameters"
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '403':
+          description: Not the primaryOwnerId of this tenant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Not authorized to view this company"
+        '404':
+          description: Tenant not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Company not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+
+  /api/account/usage/{tenantId}/breakdown:
+    get:
+      tags:
+        - Account & Company
+      summary: Get storage breakdown for a company
+      description: >
+        Returns a detailed storage breakdown for the specified company.
+        Only the `primaryOwnerId` can access this endpoint.
+      operationId: getUsageBreakdown
+      security:
+        - accountCookieAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          description: Tenant ID to get breakdown for.
+          schema:
+            type: string
+            format: uuid
+            example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+      responses:
+        '200':
+          description: Usage breakdown retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageBreakdownResponse'
+              example:
+                database:
+                  totalBytes: 1048576
+                  modules:
+                    - key: "sales"
+                      label: "Sales & POS"
+                      color: "#22c55e"
+                      totalBytes: 243000
+                      totalRows: 450
+                      tables:
+                        - name: "sales"
+                          label: "Sales"
+                          rows: 450
+                          bytes: 243000
+                files:
+                  totalBytes: 104857600
+                  byCategory:
+                    - category: "Images"
+                      bytes: 52428800
+                      count: 35
+                      color: "#22c55e"
+                    - category: "Item Images"
+                      bytes: 31457280
+                      count: 120
+                      color: "#f59e0b"
+                  topFiles:
+                    - id: "q8r9s0t1-u2v3-4567-w890-123456789012"
+                      fileName: "product-catalog-2026.pdf"
+                      fileType: "application/pdf"
+                      fileSize: 15728640
+                      createdAt: "2026-03-01T10:00:00.000Z"
+                      thumbnailUrl: null
+        '400':
+          description: Path parameter is not a valid UUID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid path parameters"
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '403':
+          description: >
+            Tenant not found or authenticated account is not the primaryOwnerId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Not authorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+
+  /api/account/wallet:
+    get:
+      tags:
+        - Account & Company
+      summary: Get wallet balance and transactions
+      description: >
+        Returns the authenticated account's wallet balance and up to 50 recent credit/debit transactions.
+      operationId: getWallet
+      security:
+        - accountCookieAuth: []
+      responses:
+        '200':
+          description: Wallet data retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletResponse'
+              examples:
+                withTransactions:
+                  summary: Wallet with balance and transactions
+                  value:
+                    balance: 1403.23
+                    currency: "LKR"
+                    transactions:
+                      - id: "r9s0t1u2-v3w4-5678-x901-234567890123"
+                        type: "credit"
+                        amount: "1403.23"
+                        description: "Plan downgrade credit: Professional → Starter (prorated)"
+                        balanceAfter: "1403.23"
+                emptyTransactions:
+                  summary: No transactions or fetch failed
+                  value:
+                    balance: 0
+                    currency: "LKR"
+                    transactions: []
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '404':
+          description: Account not found despite valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Account not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to fetch wallet"
 
 
 
@@ -3580,7 +4740,7 @@ components:
         isActive:
           type: boolean
           description: Whether the user account is active.
-          example: "true"
+          example: true
         createdAt:
           type: string
           format: date-time
@@ -3732,7 +4892,7 @@ components:
         isActive:
           type: boolean
           description: Whether the user account is active.
-          example: "true"
+          example: true
       required:
         - id
         - fullName
@@ -5699,7 +6859,7 @@ components:
           description: Last update timestamp.
           example: "2026-03-29T10:00:00.000Z"
       required:
-        [id, accountId, subject, status, priority, unreadByAccount, unreadByAdmin, createdAt, updatedAT]
+        [id, accountId, subject, status, priority, unreadByAccount, unreadByAdmin, createdAt, updatedAt]
 
     MessageItem:
       type: object
@@ -5769,7 +6929,7 @@ components:
       properties:
         data:
           type: array
-          description: Liast of conversations ordered by lastMessageAt descending.
+          description: List of conversations ordered by lastMessageAt descending.
           items:
             $ref: '#/components/schemas/ConversationItem'
         pagination:
@@ -5778,7 +6938,7 @@ components:
     CreateConversationRequest:
       type: object
       description: >
-        Request body for POST /api/account/meesages.
+        Request body for POST /api/account/messages.
         Note: the message content field is named `message` in the request body (not `content`).
       required:
         [subject, message, category, priority]
@@ -5787,7 +6947,7 @@ components:
           type: string
           minLength: 1
           maxLength: 255
-          description: Converstaion subject.
+          description: Conversation subject.
           example: "Billing question for March"
         message:
           type: string
@@ -5812,10 +6972,1125 @@ components:
       type: object
       description: >
         Response from POST /api/account/messages.
-        Contain both the created conversation and the first message, both as full rows.
+        Contains both the created conversation and the first message, both as full rows.
       required: [conversation, message]
       properties:
         conversation:
           $ref: '#/components/schemas/ConversationItem'
         message:
           $ref: '#/components/schemas/MessageItem'
+    
+    ConversationDetailResponse:
+      type: object
+      description: >
+        Includes the full conversation row and all messages ordered by creation time ascending. 
+        Automatically marks the conversation as ready by the account if it was unread.
+      required: [conversation, messages]
+      properties:
+        conversation:
+          allOf:
+            - $ref: '#/components/schemas/ConversationItem'
+          description: Full conversation row.
+        messages:
+          type: array
+          description: All messages in this conversation, ordered by createdAt ascending (oldest first).
+          items:
+            $ref: '#/components/schemas/MessageItem'
+    
+    SendReplyRequest:
+      type: object
+      description: >
+        Request body for POST /api/account/messages/{conversationId}.
+        Note: the field name is `content` (unlike the conversation creation endpoint which uses `message`).
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: >
+            Reply message content. Trimmed server-side.
+            First 200 characters are stored as `lastMessagePreview` on the conversation.
+          example: "Thank you for getting back to me. The issue is now resolved."
+    
+    ConversationActionRequest:
+      type: object
+      description: >
+        `close` sets status to `closed` and records `closedBy: 'account'`..
+        `reopen` sets status to `open` and clears `closedAt` and `closedBy`.
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [close, reopen]
+          description: Action to perform on the conversation.
+          example: "close"
+    
+    RecentConversationItem:
+      type: object
+      description: >
+        A lightweight conversation summary returned.
+        Contains only 6 selected fields — not the full conversation row.
+      required:
+        [id, subject, status, unreadByAccount]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Conversation unique identifier.
+          example: "k2l3m4n5-o6p7-8901-q234-567890123456"
+        subject:
+          type: string
+          description: Conversation subject.
+          example: "Billing question for March"
+        status:
+          type: string
+          enum: [open, closed, archived]
+          description: Conversation status.
+          example: "open"
+        lastMessageAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of the last message.
+          example: "2026-03-29T10:00:00.000Z"
+        lastMessagePreview:
+          type: string
+          nullable: true
+          description: Preview of the last message (first 200 characters).
+          example: "I have a question about my March invoice..."
+        unreadByAccount:
+          type: boolean
+          description: Whether there are unread messages for the account user.
+          example: false
+    
+    RecentConversationsResponse:
+      type: object
+      description: >
+        Response from GET /api/account/messages/recent.
+      required: [conversations]
+      properties:
+        conversations:
+          type: array
+          description: Up to 5 most recent conversations ordered by last message date descending.
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/RecentConversationItem'
+    
+    ActivityItem:
+      type: object
+      description: >
+        A single activity entry merged from three sources:
+        company activity logs, payment deposits, and wallet transactions.
+      required: 
+        [id, type, action, description, companyName, createdAt, metadata]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Activity unique identifier.
+          example: "n5o6p7q8-r9s0-1234-t567-890123456789"
+        type:
+          type: string
+          description: >
+            Activity type. `payment` for payment deposits, `wallet` for wallet transactions, or the `entityType` value from activity logs (e.g., `work_order`, `estimate`, `customer`).
+          example: "payment"
+        action:
+          type: string
+          enum: [create, update, delete, status_change, submit, approve, reject, cancel, convert, login, logout, print, export, import]
+          description: Action performed.
+          example: "action"
+        description:
+          type: string
+          description: Human-readable description.
+          example: "Subscription payment of LKR 2900.00 - pending"
+        companyName:
+          type: string
+          nullable: true
+          description: >
+            Company name for activity log entries. Always null for payment and wallet entries.
+          example: "Sunrise Retail"
+        createdAt:
+          type: string
+          format: date-time
+          description: Activity timestamp.
+          example: "2026-03-29T10:00:00.000Z"
+        metadata:
+          type: object
+          description: Additional context.
+          additionalProperties: true
+          example: {}
+    
+    ActivityListResponse:
+      type: object
+      description: Response from GET /api/account/activity.
+      required: [activities, total, limit, offset]
+      properties:
+        activities:
+          type: array
+          description: Paginated activity items merged from all sources, ordered by date descending.
+          items:
+            $ref: '#/components/schemas/ActivityItem'
+        total:
+          type: integer
+          description: >
+            Total items collected in memory across all sources before pagination.
+          example: 45
+        limit:
+          type: integer
+          description: Maximum items per page (applied).
+          example: 50
+        offset:
+          type: integer
+          description: Offset applied for pagination.
+          example: 0
+
+    AvatarUploadResponse:
+      type: object
+      description: Response on successful avatar upload.
+      required: [avatarUrl]
+      properties:
+        avatarUrl:
+          type: string
+          description: >
+            CDN URL of the newly uploaded avatar.
+            Stored in `accounts.avatarUrl` after upload.
+          example: "https://cdn.retailsmarterp.com/avatars/a1b2c3d4e5f6.png"
+    
+    BankDetailsResponse:
+      type: object
+      description: >
+        Response from GET /api/account/bank-details.
+        Returns the `bank_details` entry from the system settings table.
+      required: [value]
+      properties:
+        value:
+          nullable: true
+          description: >
+            Bank details as configured by an administrator in system settings.
+            Null if not yet configured.
+          example: null
+    
+    BillingSummary:
+      type: object
+      description: >
+        Billing totals for the current period.
+        `subtotal` includes only active subscriptions — trial companies are excluded.
+        `currency` is always `LKR` regardless of the account's preferred currency.
+      required: 
+        [companyCount, discountPercent, subtotal, discount, total, currency]
+      properties:
+        companyCount:
+          type: integer
+          description: Number of active or trial companies in billing.
+          example: 3
+        discountPercent:
+          type: integer
+          description: Volume discount percentage applied (0-100).
+          example: 15
+        subtotal:
+          type: number
+          description: >
+            Sum of monthly prices for active subscriptions only (trial excluded).
+          example: 8700
+        discount:
+          type: number
+          description: Discount amount (subtotal × discountPercent / 100).
+          example: 1305
+        total:
+          type: number
+          description: Final amount after discount (subtotal - discount).
+          example: 7395
+        currency:
+          type: string
+          description: >
+            Always `LKR` — hardcoded regardless of account currency preference.
+          example: "LKR"
+    
+    BillingLineItem:
+      type: object
+      description: >
+        Billing line item for a single company subscription.
+        Includes both active and trial subscriptions.
+      required:
+        [tenantId, tenantName, tierName, priceMonthly, tierCurrency, status, grandfathered]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+          description: Tenant unique identifier.
+          example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        tenantName:
+          type: string
+          description: Company display name.
+          example: "Sunrise Retail"
+        tierName:
+          type: string
+          description: Pricing tier display name.
+          example: "Professional"
+        priceMonthly:
+          type: number
+          description: >
+            Effective monthly price. For yearly subscriptions, this is the annual price + 12.
+            Uses grandfathered price if applicable.
+          example: 2900
+        tierCurrency:
+          type: string
+          description: Currency code for this tier. Default LKR.
+          example: "LKR"
+        status:
+          type: string
+          enum: [active, trial]
+          description: Subscription status. Only active and trial subscriptions are included.
+          example: "active"
+        trialEndsAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Trial expiry timestamp. Null for non-trial subscriptions.
+          example: null
+        grandfathered:
+          type: boolean
+          description: >
+            Whether the subscription uses a locked-in price that differs from the current tier price.
+          example: false
+        currentTierPrice:
+          type: number
+          nullable: true
+          description: >
+            Current tier's monthly price (not the grandfathered price).
+            Null if the tier has no monthly price set.
+          example: 2900
+    
+    VolumeTierItem:
+      type: object
+      description: >
+        A single volume discount tier as returned by the billing endpoint.
+        From system settings (5-minute cache), with fallback defaults.
+      required: 
+        [minCompanies, discount]
+      properties:
+        minCompanies:
+          type: integer
+          description: Minimum number of companies to qualify for this tier.
+          example: 2
+        discount:
+          type: integer
+          description: Discount percentage for this tier (0-100).
+          example: 15
+    
+    RecentInvoiceItem:
+      type: object
+      description: >
+        A recent invoice summary. The `lineItems` DB column is excluded.
+      required:
+        [id, invoiceNumber, periodStart, periodEnd, subtotal, volumeDiscount, total, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Invoice unique identifier.
+          example: "o6p7q8r9-s0t1-2345-u678-901234567890"
+        invoiceNumber:
+          type: string
+          maxLength: 50
+          description: Human-readable invoice number.
+          example: "INV-2026-001"
+        periodStart:
+          type: string
+          description: Billing period start — YYYY-MM-DD format.
+          example: "2026-03-01"
+        periodEnd:
+          type: string
+          description: Billing period end — YYYY-MM-DD format.
+          example: "2026-03-31"
+        subtotal:
+          type: string
+          description: Invoice subtotal — decimal string.
+          example: "8700.00"
+        volumeDiscount:
+          type: string
+          description: Volume discount applied — decimal string.
+          example: "1305.00"
+        total:
+          type: string
+          description: Invoice total after discount — decimal string.
+          example: "7395.00"
+        status:
+          type: string
+          enum: [draft, pending, paid, failed]
+          description: Invoice status.
+          example: "draft"
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Payment timestamp. Null if not yet paid.
+          example: "2026-03-05T10:00:00.000Z"
+    
+    BillingResponse:
+      type: object
+      description: >
+        Response from GET /api/account/billing.
+      required:
+        [summary, lineItems, userCurrency, discountTiers, recentInvoices]
+      properties:
+        summary:
+          $ref: '#/components/schemas/BillingSummary'
+        lineItems:
+          type: array
+          description: Billing line items for each active or trial company.
+          items:
+            $ref: '#/components/schemas/BillingLineItem'
+        userCurrency:
+          type: array
+          description: >
+            Account's preferred currency. May differ from `summary.currency`.
+          items:
+            $ref: '#/components/schemas/VolumeTierItem'
+        recentInvoices:
+          type: array
+          description: Up to 10 most recent invoices ordered by creation date descending.
+          items:
+            $ref: '#/components/schemas/RecentInvoiceItem'
+    
+    ChangePasswordRequest:
+      type: object
+      description: >
+        Request body for PUT /api/account/password.
+        `newPassword` must satisfy the platform password policy (rules from `passwordSchema` — This needs verification).
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          description: >
+            Current account password. Required to verify identity before change.
+            Google-only accounts (no password set) cannot use this endpoint.
+          example: "OldPassword123!"
+        newPassword:
+          type: string
+          description: >
+            New password. Must satisfy platform password policy.
+          example: "NewSecurePassword456!"
+    
+    ChangePasswordResponse:
+      type: object
+      description: >
+        Returned on successful password change.
+        All other sessions are revoked asynchronously (current session preserved).
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Password updated successfully"
+    
+    ActivePricingTier:
+      type: object
+      description: >
+        An active pricing tier returned by GET /api/account/pricing-tiers.
+        Contains 11 selected fields — not the full `PricingTierRecord`.
+      required:
+        [id, name, displayName, priceMonthly, priceYearly, currency]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Pricing tier unique identifier.
+          example: "d4e5f6a7-b8c9-0123-def0-345678901234"
+        name:
+          type: string
+          maxLength: 50
+          description: >
+            Internal tier name. Known value: trial, starter, professional, business, enterprise.
+          example: "professional"
+        displayName:
+          type: string
+          maxLength: 100
+          description: Display name shown to users.
+          example: "Professional"
+        priceMonthly:
+          type: number
+          description: >
+            Monthly price converted from DB decimal to number via `Number()`.
+          example: 2900
+        priceYearly:
+          type: number
+          description: >
+            Yearly price converted from DB decimal to number via `Number()`.
+            Returns `0` if the DB value is null.
+          example: 29000
+        currency:
+          type: string
+          description: ISO 4217 currency code. Always present — DB default is `LKR`.
+          example: "LKR"
+        maxUsers:
+          type: integer
+          nullable: true
+          description: Maximum number of users allowed. Null means unlimited.
+          example: null
+        maxSalesMonthly:
+          type: integer
+          nullable: true
+          description: Maximum monthly sales transactions. Null means unlimited.
+          example: null
+        maxDatabaseBytes:
+          type: integer
+          nullable: true
+          description: Maximum database storage in bytes. Null means unlimited.
+          example: null
+        maxFileStorageBytes:
+          type: integer
+          nullable: true
+          description: Maximum file storage in bytes. Null means unlimited.
+          example: null
+        features:
+          type: object
+          nullable: true
+          description: Feature flags for this tier. DB default is `{}`.
+          additionalProperties: true
+          example: {}
+
+    TeamMemberSite:
+      type: object
+      description: >
+        A company site that a team member belongs to.
+      required: [id, name, role]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Tenant unique identifier.
+          example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        name:
+          type: string
+          description: Company display name.
+          example: "Sunrise Retail"
+        role:
+          type: string
+          enum: [owner, manager, cashier, technician, chef, waiter, system_manager, accounts_manager, sales_manager, purchase_manager, hr_manager, stock_manager, pos_user, report_user, dealer_sales]
+          description: Member's role in this company.
+          example: "cashier"
+    
+    TeamMemberItem:
+      type: object
+      description: >
+        A team member grouped by account.
+        If a member belongs to multiple owned companies, all their sites are merged into the `sites` array. The `id` and `joinedAt` are taken from the first matching `accountTenants` record.
+      required:
+        [id, accountId, fullName, email, isOwner, sites]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: >
+            `accountTenants` record ID — not `accounts.id`.
+            From the first matching record if the member belongs to multiple companies.
+          example: "p7q8r9s0-t1u2-3456-v789-012345678901"
+        accountId:
+          type: string
+          format: uuid
+          description: Account unique identifier.
+          example:  "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        fullName:
+          type: string
+          description: Member's full name.
+          example: "Jane Doe"
+        email:
+          type: string
+          format: email
+          description: Member's email address.
+          example: "jane@example.com"
+        isOwner:
+          type: boolean
+          description: >
+            Whether this member is an owner in the company (`accountTenants.isOwner`).
+          example: false
+        sites:
+          type: array
+          description: >
+            All companies this member belongs to within the caller's owned companies.
+          items:
+            $ref: '#/components/schemas/TeamMemberSite'
+        joinedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            `accountTenants.createdAt` — when the member joined this company.
+            From the first matching record if member belongs to multiple companies.
+          example: "2026-01-15T10:00:00.000Z"
+    
+    TeamResponse:
+      type: object
+      description: >
+        Response from GET /api/account/team.
+      required: [members]
+      properties:
+        members:
+          type: array
+          description: >
+            Team members of all owned companies, grouped by account.
+            Empty array if the authenticated account owns no companies.
+          items:
+            $ref: '#/components/schemas/TeamMemberItem'
+    
+    UsageSubscriptionSummary:
+      type: object
+      description: >
+        Subscription summary nested in a company usage item.
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [trial, active, past_due, cancelled, locked]
+          description: Subscription status.
+          example: "trial"
+        tierName:
+          type: string
+          nullable: true
+          description: >
+            Pricing tier display name. Null if tier record is missing.
+          example: "Professional"
+        trialEndsAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Trial expiry timestamp.
+          example: null
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          nullable: true
+          description: Current billing period end.
+          example: "2026-04-01T00:00:00.000Z"
+    
+    CompanyUsageDetail:
+      type: object
+      description: >
+        Usage statistics for a company. Null if no tenantUsage record exists.
+      required:
+        [users, customers, items, sales, workOrders, totalRecords, storageBytes, fileStorageBytes]
+      properties:
+        users:
+          type: integer
+          description: Number of user records.
+          example: 5
+        customers:
+          type: integer
+          description: Number of customer records.
+          example: 120
+        items:
+          type: integer
+          description: Number of inventory item records.
+          example: 300
+        sales:
+          type: integer
+          description: Number of sale records.
+          example: 450
+        workOrders:
+          type: integer
+          description: Number of work order records.
+          example: 80
+        totalRecords:
+          type: integer
+          description: >
+            Sum of all 17 count columns (users, customers, vehicles, items, categories, service types, suppliers, sales, sale items, work orders, work order services, work order parts, appointments, insurance estimates, purchases, purchase orders, stock transfers). Zero if no usage record exists.
+          example: 955
+        storageBytes:
+          type: integer
+          description: Database storage used in bytes (bigint as number).
+          example: 10485760
+        fileStorageBytes:
+          type: integer
+          description: File storage used in bytes (bigint as number).
+          example: 52428800
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When usage was last updated. Nullable column.
+          example: "2026-03-29T08:00:00.000Z"
+    
+    CompanyLimitsDetail:
+      type: object
+      description: >
+        Plan limits from the pricing tier. Null if no subscription or no tier.
+        Null values within limits mean unlimited.
+      properties:
+        maxUsers:
+          type: integer
+          nullable: true
+          description: Maximum users allowed. Null means unlimited.
+          example: null
+        maxSalesMonthly:
+          type: integer
+          nullable: true
+          description: Maximum monthly sales. Null means unlimited.
+          example: null
+    
+    CompanyUsageItem:
+      type: object
+      description: >
+        Usage summary for a single company.
+        Includes tenant info, membership role, subscription summary, detailed usage stats, and plan limits.
+      required:
+        [id, name, slug, businessType, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Tenant unique identifier.
+          example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        name:
+          type: string
+          description: Company display name.
+          example: "Sunrise Retail"
+        slug:
+          type: string
+          description: Company slug.
+          example: "sunrise-retail"
+        businessType:
+          type: string
+          enum: [retail, restaurant, supermarket, auto_service, dealership]
+          description: Buseinss type.
+          example: "retail"
+        status:
+          type: string
+          enum: [active, suspended, cancelled, locked]
+          description: Tenant status.
+          example: "active"
+        role:
+          type: string
+          nullable: true
+          description: >
+            Authenticated account's role in this company (`accountTenants.role`).
+            Null if membership not found in membershipMap.
+          example: "manager"
+        isOwner:
+          type: boolean
+          nullable: true
+          description: >
+            Whether authenticated account is owner in this company (`accountTenants.isOwner`).
+          example: true
+        subscription:
+          allOf:
+            - $ref: '#/components/schemas/UsageSubscriptionSummary'
+          nullable: true
+          description: Subscription summary. Null if no subscription record.
+        usage:
+          allOf:
+            - $ref: '#/components/schemas/CompanyUsageDetail'
+          nullable: true
+          description: Usage statistics. Null if no tenantUsage record.
+        limits:
+          allOf:
+            - $ref: '#/components/schemas/CompanyLimitsDetail'
+          nullable: true
+          description: Plan limits from subscription tier. Null if no tier.
+    
+    UsageTotals:
+      type: object
+      description: >
+        Aggregated totals across all companies.
+      required:
+        [companies, records, storageBytes, fileStorageBytes]
+      properties:
+        companies:
+          type: integer
+          description: Total number of companies.
+          example: 3
+        records:
+          type: integer
+          description: Sum of totalRecords across all companies.
+          example: 2865
+        storageBytes:
+          type: integer
+          description: SUm of database storage bytes across all compnanies.
+          example: 314457280
+        fileStorageBytes:
+          type: integer
+          description: Sum of file storage bytes across all companies.
+          example: 157286400
+    
+    UsageResponse:
+      type: object
+      description: >
+        Response from GET /api/account/usage.
+      required: [companies, totals]
+      properties:
+        companies:
+          type: array
+          description: >
+            Per-company usage summaries for all active memberships.
+            Empty array if no active memberships.
+          items:
+            $ref: '#/components/schemas/CompanyUsageItem'
+        totals:
+          $ref: '#/components/schemas/UsageTotals'
+    
+    TableBreakdown:
+      type: object
+      description: > 
+        Usage breakdown for a single database table.
+        `bytes` is an estimate: `rows × bytesPerRow × 1.2` (20% index overhead).
+        Only tables with `rows > 0` are included.
+      required:
+        [name, label, rows, bytes]
+      properties:
+        name:
+          type: string
+          description: Physical database table name.
+          example: "sales"
+        label:
+          type: string
+          description: Human-readable table label.
+          example: "Sales"
+        rows:
+          type: integer
+          description: Actual row count from COUNT(*).
+          example: 450
+        bytes:
+          type: integer
+          description: >
+            Estimated storage in bytes: `rows × bytesPerRow × 1.2`.
+          example: 243000
+    
+    ModuleBreakdown:
+      type: object
+      description: >
+        Storage breakdown for a single business module.
+        Tables are sorted by bytes descending.
+      required: 
+        [key, label, color, totalBytes, totalRows, tables]
+      properties:
+        key:
+          type: string
+          description: >
+            Module key. Known values: core, inventory, sales, pos, purchases, accounting, work_orders, restaurant, vehicles, hr, system, files.
+          example: "sales"
+        label:
+          type: string
+          description: Human-readable module label.
+          example: "Sales & POS"
+        color:
+          type: string
+          description: Hex color for UI display.
+          example: "#22c55e"
+        totalBytes:
+          type: integer
+          description: Sum of estimated bytes across all non-empty tables in this module.
+          example: 243000
+        totalRows:
+          type: integer
+          description: Sum of rows across all non-empty tables in this module.
+          example: 450
+        tables:
+          type: array
+          description: Non-empty tables in this module, sorted by bytes descending.
+          items:
+            $ref: '#/components/schemas/TableBreakdown'
+    
+    FileCategoryBreakdown:
+      type: object
+      description: >
+        File storage breakdown for a single category.
+        Categories: `Images`, `Documents`, `Item Images`, `Logos`, `Other`.
+      required:
+        [category, bytes, count, color]
+      properties:
+        category:
+          type: string
+          description: File category name.
+          example: "Image"
+        bytes:
+          type: integer
+          description: Total bytes for this category.
+          example: 52428800
+        count:
+          type: integer
+          description: Number of files in this category.
+          example: 35
+        color:
+          type: string
+          description: >
+            Hex color for UI display. Falls back to `#64748b` for unknown categories.
+          example: "#22c55e"
+    
+    TopFileItem:
+      type: object
+      description: >
+        A large file entry from the top 10 files by size.
+      required:
+        [id, fileName, fileType, fileSize, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: File unique identifier.
+          example: "q8r9s0t1-u2v3-4567-w890-123456789012"
+        fileName:
+          type: string
+          description: File name.
+          example: "product-catalog-2026.pdf"
+        fileType:
+          type: string
+          description: MIME type. Empty string if null in DB.
+          example: "application/pdf"
+        fileSize:
+          type: integer
+          description: File size in bytes. 0 if null in DB.
+          example: 15728640
+        createdAt:
+          type: string
+          description: >
+            ISO 8601 timestamp string. Empty string if createdAt is null in DB.
+          example: "2026-03-01T10:00:00.000Z"
+        thumbnailUrl:
+          type: string
+          nullable: true
+          description: Thumbnail CDN URL. Null if no thumbnail.
+          example: null
+    
+    UsageBreakdownResponse:
+      type: object
+      description: >
+        Response from GET /api/account/usage/{tenantId}/breakdown.
+        Contains two sections: database module breakdown and file storage breakdown.
+      required: [database, files]
+      properties:
+        database:
+          type: object
+          description: Database storage breakdown by module.
+          required: [totalBytes, modules]
+          properties:
+            totalBytes:
+              type: integer
+              description: >
+                Total estimated database bytes across all modules.
+                Estimate only — not actual PostgreSQL storage.
+              example: 1048576
+            modules:
+              type: array
+              description: Modules with data, sorted by totalBytes descending.
+              items:
+                $ref: '#/components/schemas/ModuleBreakdown'
+        files:
+          type: object
+          description: File storage breakdown by category.
+          required:
+            [totalBytes, byCategory, topFiles]
+          properties:
+            totalBytes:
+              type: integer
+              description: >
+                Total file storage bytes (files table + item images + logo).
+              example: 104857600
+            byCategory:
+              type: array
+              description: File storage by category, sorted by bytes descending.
+              items:
+                $ref: '#/components/schemas/FileCategoryBreakdown'
+            totalFiles:
+              type: array
+              description: Up to 10 largest files by size.
+              maxItems: 10
+              items:
+                $ref: '#/components/schemas/TopFileItem'
+    
+    WalletTransactionItem:
+      type: object
+      description: >
+        A single wallet credit/debit transaction.
+      required:
+        [id, type, amount, description, createdAt, balanceAfter]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Transaction unique identifier.
+          example: "r9s0t1u2-v3w4-5678-x901-234567890123"
+        type:
+          type: string
+          enum: [credit, debit]
+          maxLength: 10
+          description: Transaction type.
+          example: "credit"
+        amount:
+          type: string
+          description: >
+            Transaction amount — DB decimal converted to number.
+          example: 1403.23
+        description:
+          type: string
+          description: Human-readable transaction description.
+          example: "Plan downgrade credit: Professional → Starter (prorated)"
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp.
+          example: "2026-03-29T10:00:00.000Z"
+        balanceAfter:
+          type: number
+          description: >
+            Wallet balance after this transaction  DB decimal converted to number.
+          example: 1403.23
+    
+    WalletResponse:
+      type: object
+      description: Response from GET /api/account/wallet.
+      required:
+        [balance, currency, transactions]
+      properties:
+        balance:
+          type: number
+          description: >
+            Current wallet balance — DB decimal converted to number.
+            Defaults to 0 if null.
+          example: 1403.23
+        currency:
+          type: string
+          description: >
+            Account currency code. Defaults to `LKR`.
+          example: "LKR"
+        transactions:
+          type: array
+          description: >
+            Up to 50 most recent transactions ordered by creation date descending.
+            Empty array if no transactions or if fetching transactions failed.
+          items:
+            $ref: '#/components/schemas/WalletTransactionItem'
+    
+    TenantUsageDetailResponse:
+      type: object
+      description: >
+        Response from GET /api/account/usage/{tenantId}.
+        Returns a storage summary for a specific tenant.
+        Only the `primaryOwnerId` can access this endpoint.
+      required: 
+        [tenant, usage, totals, subscription, tier, limits, canManage]
+      properties:
+        tenant:
+          type: object
+          description: Basic tenant information.
+          required: [id, name, slug, businessType]
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            name:
+              type: string
+              example: "Sunrise Retail"
+            slug:
+              type: string
+              example: "sunrise-retail"
+            buseinssType:
+              type: string
+              enum: [retail, restaurant, supermarket, auto_service, dealership]
+              example: "retail"
+        usage:
+          type: object
+          nullable: true
+          description: >
+            Storage usage. Null if no tenantUsage record exists.
+          required: [databaseBytes, fileStorageBytes, updatedAt]
+          properties:
+            databaseBytes:
+              type: integer
+              description: >
+                Database storage used in bytes (mapped from `storageBytes`).
+                Reutrns 0 if DB value is falsy.
+              example: 10485760
+            fileStorageBytes:
+              type: integer
+              description: File storage used in bytes. Returns 0 if falsy.
+              example: 52428800
+            updatedAt:
+              type: string
+              format: date-time
+              nullable: true
+              description: When usage was last updated. Nullable column.
+              example: "2026-03-29T08:00:00.000Z"
+        totals:
+          type: object
+          description: >
+            Storage totals — always returned even if usage is null (defaults to 0).
+          required: [storageBytes, fileStorageBytes]
+          properties:
+            storageBytes:
+              type: integer
+              description: Database storage bytes (same as usage.databaseBytes). 0 if no usage.
+              example: 10485760
+            fileStorageBytes:
+              type: integer
+              description: File storage bytes (same as usage.fileStroageBytes). 0 if no usage.
+              example: 52428800
+        subscription:
+          type: object
+          nullable: true
+          description: Subscription summary. Null if no subscription record.
+          required: [status]
+          properties:
+            status:
+              type: string
+              enum: [trial, active, past_due, cancelled, locked]
+              example: "active"
+            currentPeriodStart:
+              type: string
+              format: date-time
+              nullable: true
+              example: "2026-03-01T00:00:00.000Z"
+            currentPeriodEnd:
+              type: string
+              format: date-time
+              nullable: true
+              example: "2026-04-01T00:00:00.000Z"
+            trialEndsAt:
+              type: string
+              format: date-time
+              nullable: true
+              example: null
+        tier:
+          type: object
+          nullable: true
+          description: Pricing tier summary (3 fields only). Null if no subscription or tier.
+          required: 
+            [id, name, displayName]
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "d4e5f6a7-b8c9-0123-def0-345678901234"
+            name:
+              type: string
+              example: "professional"
+            displayName:
+              type: string
+              example: "Professional"
+        limits:
+          type: object
+          description: >
+            Storage limits from the pricing tier.
+            Always returned — null values mean unlimited.
+          required: [maxStorageBytes, maxFileStorageBytes]
+          properties:
+            maxStorageBytes:
+              type: integer
+              nullable: true
+              description: >
+                Maximum database storage bytes. Null means unlimited.
+                Mapped from `pricingTiers.maxDatabaseBytes`.
+              example: null
+            maxFileStorageBytes:
+              type: integer
+              nullable: true
+              description: Maximum file storage bytes. Null means unlimited.
+              example: null
+        canManage:
+          type: boolean
+          description: >
+            Always `true` for callers who pass the authorization check (only `primaryOwnerId` can reach this response).
+          example: true

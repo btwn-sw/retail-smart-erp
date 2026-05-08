@@ -2145,7 +2145,7 @@ paths:
                 error: "Validation failed"
                 details:
                   - field: "exceptCurrent"
-                    message: "Expected boolean, recieved string"
+                    message: "Expected boolean, received string"
         '401':
           description: No valid session.
           content:
@@ -4041,7 +4041,546 @@ paths:
               example:
                 error: "Failed to fetch wallet"
 
+  # ---- /company ----
+  /api/company/storage-quota:
+    get:
+      tags:
+        - Account & Company
+      summary: Get storage quota for current tenant
+      description: >
+        Returns the storage quota for the authenticated staff member's current tenant.
+        Results are cached in memory for 60 seconds per tenant.
+      operationId: getCompanyStorageQuota
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Storage quota retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageQuotaResponse'
+              examples:
+                withinLimits:
+                  summary: Usage within limits
+                  value:
+                    dbUsedBytes: 10485760
+                    dbLimitBytes: 1073741824
+                    fileUsedBytes: 52428800
+                    fileLimitBytes: 5368709120
+                    dbPercent: 0.9
+                    filePercent: 1.0
+                    warningLevel: "none"
+                    canCreateRecords: true
+                    canUploadFiles: true
+                    canCompleteSales: true
+                noLimit:
+                  summary: No limits set (null)
+                  value:
+                    dbUsedBytes: 10485760
+                    dbLimitBytes: null
+                    fileUsedBytes: 52428800
+                    fileLimitBytes: null
+                    dbPercent: 0
+                    filePercent: 0
+                    warningLevel: "none"
+                    canCreateRecords: true
+                    canUploadFiles: true
+                    canCompleteSales: true
+                blocked:
+                  summary: Storage full
+                  value:
+                    dbUsedBytes: 1073741824
+                    dbLimitBytes: 1073741824
+                    fileUsedBytes: 52428800
+                    fileLimitBytes: 5368709120
+                    dbPercent: 100.0
+                    filePercent: 1.0
+                    warningLevel: "blocked"
+                    canCreateRecords: false
+                    canUploadFiles: true
+                    canCompleteSales: true
+        '401':
+          description: No valid company session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
 
+  /api/company/subscription:
+    get:
+      tags:
+        - Account & Company
+      summary: Get company subscription status
+      description: >
+        Returns the current subscription status for the authenticated company.
+        Uses RLS context (`withTenant`) to isolate the subscription to the current tenant.
+      operationId: getCompanySubscription
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Subscription status retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanySubscriptionStatus'
+              examples:
+                activePaid:
+                  summary: Active paid subscription
+                  value:
+                    status: "active"
+                    trialEndsAt: null
+                    currentPeriodEnd: "2026-04-01T00:00:00.000Z"
+                    tierName: "Professional"
+                    cancelAtPeriodEnd: false
+                trial:
+                  summary: Trial subscription
+                  value:
+                    status: "trial"
+                    trialEndsAt: "2026-04-10T00:00:00.000Z"
+                    currentPeriodEnd: null
+                    tierName: "Professional"
+                    cancelAtPeriodEnd: false
+                cancelScheduled:
+                  summary: Cancellation scheduled
+                  value:
+                    status: "active"
+                    trialEndsAt: null
+                    currentPeriodEnd: "2026-04-01T00:00:00.000Z"
+                    tierName: "Starter"
+                    cancelAtPeriodEnd: true
+        '401':
+          description: No valid company session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '404':
+          description: No subscription record found for this tenant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Subscription not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+
+  # ---- /my-company ----
+  /api/my-companies:
+    get:
+      tags:
+        - Account & Company
+      summary: Get companies for switcher
+      description: >
+        Returns a minimal list of active companies for the authenticated user. Designed for the CompanySwitcher UI.
+        Uses the **company session** (`company-session` cookie) so it works on tenant subdomains where only that cookie is available.
+      operationId: getMyCompanies
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Company list retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MyCompanyItem'
+              examples:
+                withCompanies:
+                  summary: User with active memberships
+                  value:
+                    - id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                      name: "Sunrise Retail"
+                      slug: "sunrise-retail"
+                      businessType: "retail"
+                      status: "active"
+                      role: "manager"
+                      isOwner: true
+                      subscription:
+                        status: "active"
+                        tierName: "professional"
+                    - id: "c3d4e5f6-a7b8-9012-cdef-234567890123"
+                      name: "North Branch"
+                      slug: "north-branch"
+                      businessType: "retail"
+                      status: "active"
+                      role: "cashier"
+                      isOwner: false
+                      subscription:
+                        status: "trial"
+                        tierName: "starter"
+                noMemberships:
+                  summary: No active memberships
+                  value: []
+        '401':
+          description: No valid company session or accountId is null.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to fetch companies"
+
+  # ---- tenant ----
+  /api/tenant:
+    get:
+      tags:
+        - Account & Company
+      summary: Get tenant settings
+      description: >
+        Returns tenant settings including tax configuration, timezone, currency, AI status, and contact information.
+        All authenticated staff members can access this endpoint — no permission check.
+      operationId: getTenantSettings
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Tenant settings retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantSettings'
+              example:
+                id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                name: "Sunrise Retail"
+                businessType: "retail"
+                currency: "LKR"
+                country: "LK"
+                taxRate: "15.00"
+                taxInclusive: false
+                timezone: "Asia/Colombo"
+                aiEnabled: false
+                aiConsentAcceptedAt: null
+                phone: "+94 11 234 5678"
+                address: "123 Main Street, Colombo"
+                email: "info@sunrise-retail.com"
+        '401':
+          description: No valid company session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '404':
+          description: Tenant record not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Tenant not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to fetch tenant settings"
+    put:
+      tags:
+        - Account & Company
+      summary: Update tenant settings
+      description: >
+        Updates tenant settings. Requires `manageSettings` permission.
+        All request fields are optional but at least one must be provided.
+      operationId: updateTenantSettings
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTenantRequest'
+            examples:
+              updateTimezone:
+                summary: Update timezone only
+                value:
+                  timezone: "Asia/Colombo"
+              enableAI:
+                summary: Enable AI features
+                value:
+                  aiEnabled: true
+              updateTax:
+                summary: Update tax settings
+                value:
+                  taxRate: 15
+                  taxInclusive: false
+      responses:
+        '200':
+          description: Tenant settings updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateTenantResponse'
+              example:
+                success: true
+                timezone: "Asia/Colombo"
+                updatedAt: "2026-03-29T10:00:00.000Z"
+        '400':
+          description: Validation failed or no fields provided.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                invalidTimezone:
+                  value:
+                    error: "Invalid timezone"
+                noFields:
+                  value:
+                    error: "No valid fields to update"
+                validationFailed:
+                  value:
+                    error: "Validation failed"
+                    details:
+                      - field: "taxRate"
+                        message: "Number must be less than or equal to 100"
+        '401':
+          description: No valid company session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '403':
+          description: Missing manageSettings permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Insufficient permissions"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to update settings"
+
+  /api/tenants/{tenantId}/currency:
+    get:
+      tags:
+        - Account & Company
+      summary: Get tenant currency
+      description: >
+        Returns the ISO 4217 currency code for the specified tenant.
+      operationId: getTenantCurrency
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          description: Tenant ID to get currency for.
+          schema:
+            type: string
+            format: uuid
+            example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+      responses:
+        '200':
+          description: Currency retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantCurrencyResponse'
+              example:
+                currency: "LKR"
+        '400':
+          description: Path parameter is not a valid UUID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                currency: "Invalid path parameters"
+        '401':
+          description: No valid session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '403':
+          description: > 
+            Company session user requested a different tenant's currency.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Forbidden"
+        '404':
+          description: Tenant not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Tenant not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to fetch tenant currency"
+  
+  /api/lookup-tenant:
+    get:
+      tags:
+        - Account & Company
+      summary: Look up tenant by slug (internal)
+      description: >
+        Internal endpoint for Next.js middleware to resolve a subdomain slug to a tenant ID. Not intended for client-side use.
+      operationId: lookupTenantBySlug
+      security:
+        - internalSecret: []
+      parameters:
+        - name: slug
+          in: query
+          required: true
+          description: Tenant subdomain slug to look up.
+          schema:
+            type: string
+            example: "sunrise-retail"
+      responses:
+        '200':
+          description: Lookup result. Null if no active tenant with this slug.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LookupTenantBySlugResponse'
+              examples:
+                found:
+                  value:
+                    tenant:
+                      id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                      slug: "sunrise-retail"
+                notFound:
+                  value:
+                    tenant: null
+        '400':
+          description: Slug query parameter missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Slug required"
+        '401':
+          description: Missing or invalid x-internal-secret header.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+        '429':
+          description: Rate limit exceeded — 5 requests per minute per slug.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Too many requests"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Lookup failed"
+    post:
+      tags:
+        - Account & Company
+      summary: Look up tenants by email
+      description: >
+        Public endpoint — no authentication required.
+        Finds all active companies associated with the given email address.
+      operationId: lookupTenantsByEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LookupTenantRequest'
+            example:
+              email: "user@example.com"
+      responses:
+        '200':
+          description: >
+            Tenant list for this email. Empty array if no matches or email unknown,
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LookupTenantResponse'
+              examples:
+                found:
+                  value:
+                    tenants:
+                      - slug: "sunrise-retail"
+                        name: "Sunrise Retail"
+                      - slug: "north-branch"
+                        name: "North Branch"
+                notFound:
+                  value:
+                    tenants: []
+        '400':
+          description: Validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Validation failed"
+        '429':
+          description: Rate limit exceeded — 5 requests per minute per email.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Too many requests. Please try again later."
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Lookup failed"
 
 
 
@@ -4056,13 +4595,20 @@ paths:
 
 components:
   securitySchemes:
-    # ---- auth ----
     cookieAuth:
       type: apiKey
       in: cookie
       name: next-auth.session-token
       description: >
         Session cookie set by NextAuth.js upon login. Required for all tenant-scoped staff operations.
+    
+    internalSecret:
+      type: apiKey
+      in: header
+      name: x-internal-secret
+      description: >
+        Internal API secret matching `NEXTAUTH_SECRET` environment variable.
+        Used for middleware-to-API communication only.
 
     # ---- account-auth ----
     accountCookieAuth:
@@ -7655,7 +8201,7 @@ components:
         businessType:
           type: string
           enum: [retail, restaurant, supermarket, auto_service, dealership]
-          description: Buseinss type.
+          description: Business type.
           example: "retail"
         status:
           type: string
@@ -7708,7 +8254,7 @@ components:
           example: 2865
         storageBytes:
           type: integer
-          description: SUm of database storage bytes across all compnanies.
+          description: Sum of database storage bytes across all companies.
           example: 314457280
         fileStorageBytes:
           type: integer
@@ -7987,7 +8533,7 @@ components:
             slug:
               type: string
               example: "sunrise-retail"
-            buseinssType:
+            businessType:
               type: string
               enum: [retail, restaurant, supermarket, auto_service, dealership]
               example: "retail"
@@ -8002,7 +8548,7 @@ components:
               type: integer
               description: >
                 Database storage used in bytes (mapped from `storageBytes`).
-                Reutrns 0 if DB value is falsy.
+                Returns 0 if DB value is falsy.
               example: 10485760
             fileStorageBytes:
               type: integer
@@ -8026,7 +8572,7 @@ components:
               example: 10485760
             fileStorageBytes:
               type: integer
-              description: File storage bytes (same as usage.fileStroageBytes). 0 if no usage.
+              description: File storage bytes (same as usage.fileStorageBytes). 0 if no usage.
               example: 52428800
         subscription:
           type: object
@@ -8094,3 +8640,378 @@ components:
           description: >
             Always `true` for callers who pass the authorization check (only `primaryOwnerId` can reach this response).
           example: true
+
+    # ---- Company ----
+    StorageQuotaResponse:
+      type: object
+      description: >
+        Storage quota for the current tenant.
+        Returned by GET /api/company/storage-quota.
+        Values are cached in memory for 60 seconds per tenant.
+      required:
+        [dbUsedBytes, dbLimitBytes, fileUsedBytes, fileLimitBytes, dbPercent, filePercent, warningLevel, canCreateRecorrds, canUploadFiles, canCompleteSales]
+      properties:
+        dbUsedBytes:
+          type: integer
+          description: Database storage currently used in bytes.
+          example: 10485760
+        dbLimitBytes:
+          type: integer
+          nullable: true
+          description: >
+            Database storage limit in bytes from subscription tier (or override).
+            Null means no limit is set.
+          example: 1073741824
+        fileUsedBytes:
+          type: integer
+          description: File storage currently used in bytes.
+          example: 52428800
+        fileLimitBytes:
+          type: integer
+          nullable: true
+          description: >
+            File storage limit in bytes from subscription tier (or override).
+            Null means no limit is set.
+          example: 5368709120
+        dbPercent:
+          type: number
+          description: >
+            Database usage as a percentage of the limit, rounded to 1 decimal place.
+            0 when `dbLimitBytes` is null.
+          example: 0.9
+        filePercent:
+          type: number
+          description: >
+            File storage usage as a percentage of the limit, rounded to 1 decimal place.
+            0 when `fileLimitBytes` is null.
+          example: 1.0
+        warningLevel:
+          type: string
+          enum: [none, warning, critical, blocked]
+          description: >
+            Overall warning level based on the higher of dbPercent and filePercent.
+            `none` below 80%, `warning` 80-89%, `critical` 90-99%, `blocked` 100%+.
+          example: "none"
+        canCreateRecords:
+          type: boolean
+          description: >
+            False when DB usage is at or above 100%. True when no DB limit is set.
+          example: true
+        canUploadFiles:
+          type: boolean
+          description: >
+            False when file usage is at or above 100%. True when no file limit is set.
+          example: true
+        canCompleteSales:
+          type: boolean
+          description: >
+            False when DB usage is at or above 110% (grace period for completing existing sales).
+            True when no DB limit is set.
+          example: true
+    
+    CompanySubscriptionStatus:
+      type: object
+      description: >
+        Current subscription status for the authenticated company.
+        Returned by GET /api/company/subscription.
+      required:
+        [status, tierName, cancelAtPeriodEnd]
+      properties:
+        status:
+          type: string
+          enum: [trial, active, past_due, cancelled, locked]
+          description: Subscription status.
+          example: "trial"
+        trialEndsAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Trial expiry timestamp. Null for non-trial subscriptions.
+          example: null
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          nullable: true
+          description: Current billing period end.
+          example: "2026-04-01T00:00:00.000Z"
+        tierName:
+          type: string
+          description: >
+            Pricing tier display name for `pricingTiers.displayName`.
+            Returns `"Free"` if no tier record is found.
+          example: "Professional"
+        cancelAtPeriodEnd:
+          type: boolean
+          description: Whether the subscription is set to cancel at the end of the current period.
+          example: false
+    
+    # ---- My-Companies ----
+    MyCompanyItem:
+      type: object
+      description: >
+        A single company entry returned by GET /api/my-companies.
+      required:
+        [id, name, slug, businessType, status, role, isOwner, subscription]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Tenant unique identifier.
+          example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        name:
+          type: string
+          description: Company display name.
+          example: "Sunrise Retail"
+        slug:
+          type: string
+          description: Company URL slug.
+          example: "sunrise-retail"
+        businessType:
+          type: string
+          enum: [retail, restaurant, supermarket, auto_service, dealership]
+          description: Business type.
+          example: "retail"
+        status:
+          type: string
+          enum: [active, suspended, cancelled, locked]
+          description: Tenant status — not filtered, all active memberships returned.
+          example: "active"
+        role:
+          type: string
+          enum: [owner, manager, cashier, technician, chef, waiter, system_manager, accounts_manager, sales_manager, purchase_manager, hr_manager, stock_manager, pos_user, report_user, dealer_sales]
+          description: >
+            Authenticated user's role in this company (`accountTenants.role`).
+          example: "cashier"
+        isOwner:
+          type: boolean
+          description: Whether the authenticated user is an owner (`accountTenants.isOwner`).
+          example: true
+        subscription:
+          type: object
+          nullable: true
+          description: >
+            Subscription summary. Null if no subscription record (leftJoin).
+          required: [status, tierName]
+          properties:
+            status:
+              type: string
+              enum: [trial, active, past_due, cancelled, locked]
+              description: Subscription status.
+              example: "active"
+            tierName:
+              type: string
+              description: >
+                Internal tier name from `pricingTiers.name` (e.g. `"professional"`).
+                Falls back to `"Free"` if no tier.
+              example: "professional"
+    
+    TenantSettings:
+      type: object
+      description: >
+        Tenant settings returned by GET /api/tenant.
+        Contains 13 selected columns — not the full tenant row.
+      required:
+        [id, name, businessType, currency, country, taxRate, taxInclusive, timezone, aiEnabled]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        name:
+          type: string
+          maxLength: 255
+          example: "Sunrise Retail"
+        businessType:
+          type: string
+          enum: [retail, restaurant, supermarket, auto_service, dealership]
+          example: "retail"
+        currency:
+          type: string
+          maxLength: 3
+          description: ISO 4217 currency code.
+          example: "LKR"
+        country:
+          type: string
+          maxLength: 2
+          description: ISO 3166-1 alpha-2 country code.
+          example: "LK"
+        taxRate:
+          type: string
+          description: >
+            Tax rate as a decimal string (DB decimal column).
+            DEPRECATED — use tax templates via accountingSettings.
+            example: "0"
+        taxInclusive:
+          type: boolean
+          description: >
+            Whether prices are tax-inclusive.
+            DEPRECATED — use tax templates via accountingSettings.
+          example: false
+        timezone:
+          type: string
+          maxLength: 50
+          description: IANA timezone identifier.
+          example: "Asia/Colombo"
+        aiEnabled:
+          type: boolean
+          description: Whether AI features are enabled for this tenant.
+          example: false
+        aiConsentAcceptedAt:
+          type: string
+          format: timestamp
+          description: Timestamp when AI was first enabled. Null until AI is enabled.
+        phone:
+          type: string
+          nullable: true
+          description: Tenant phone number.
+          example: "+94 11 234 5678"
+        address:
+          type: string
+          nullable: true
+          description: Tenant address.
+          example: "123 Main Street, Colombo"
+        email:
+          type: string
+          format: email
+          description: Tenant email address.
+          example: "info@sunrise-retail.com"
+    
+    UpdateTenantRequest:
+      type: object
+      description: >
+        Request body for PUT /api/tenant. All fields are optional.
+      properties:
+        businessType:
+          type: string
+          enum: [retail, restaurant, supermarket, auto_service, dealership]
+          example: "retail"
+        timezone:
+          type: string
+          maxLength: 10
+          description: IANA timezone. Validated server-side.
+          example: "Asia/Colombo"
+        aiEnabled:
+          type: boolean
+          description: Enable or disable AI features.
+          example: true
+        taxRate:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: >
+            Tax rate percentage (0-100). Stored as decimal string in DB.
+            DEPRECATED - use tax templates via accountingSettings.
+          example: 0
+        taxInclusive:
+          type: boolean
+          description: >
+            Whether prices include tax.
+            DEPRECATED - use tax templates via accountingSettings.
+          example: false
+        
+    UpdateTenantResponse:
+      type: object
+      description: >
+        Response from PUT /api/tenant.
+      required:
+        - success
+        - updatedAt
+      properties:
+        success:
+          type: boolean
+          example: true
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the update was applied.
+          example: "2026-03-29T10:00:00.000Z"
+        businessType:
+          type: string
+          enum: [retail, restaurant, supermarket, auto_service, dealership]
+          example: "retail"
+        timezone:
+          type: string
+          example: "Asia/Colombo"
+        aiEnabled:
+          type: boolean
+          example: true
+        aiConsentAcceptedAt:
+          type: string
+          format: date-time
+          description: Included only when AI was enabled for the first time.
+          example: "2026-03-29T10:00:00.000Z"
+        taxRate:
+          type: string
+          description: Returned as string (DB decimal).
+          example: "15"
+        taxInclusive:
+          type: boolean
+          example: false
+    
+    TenantCurrencyResponse:
+      type: object
+      description: >
+        Returns the ISO 4217 currency code for the specified tenant.
+      required: [currency]
+      properties:
+        currency:
+          type: string
+          description: ISO 4217 currency code.
+          example: "LKR"
+    
+    LookupTenantRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email address to look up. Normalized to lowercase.
+          example: "user@example.com"
+    
+    TenantSummary:
+      type: object
+      required: 
+        [slug, name]
+      properties:
+        slug:
+          type: string
+          description: Tenant URL slug.
+          example: "sunrise-retail"
+        name:
+          type: string
+          description: Tenant display name.
+          example: "Sunrise Retail"
+    
+    LookupTenantResponse:
+      type: object
+      description: >
+        Response from POST /api/lookup-tenant.
+        Always returns a `tenants` array — empty if no matches or email doesn't exist.
+        Never reveals whether an email address exists in the system.
+      required: [tenant]
+      properties:
+        tenant:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantSummary'
+
+    LookupTenantBySlugResponse:
+      type: object
+      description: >
+        Response from GET /api/lookup-tenant.
+        `tenant` is null if no active tenant with the given slug exists.
+        Never returns 404 — always 200 with null.
+      required: [tenant]
+      properties:
+        tenant:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            slug:
+              type: string
+              example: "sunrise-retail"
